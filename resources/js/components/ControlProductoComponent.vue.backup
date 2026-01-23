@@ -1,0 +1,949 @@
+<template>
+    <div class="container-fluid px-2 px-md-5 py-3">
+        <div class="bg-white border rounded shadow-sm p-3 p-md-5">
+            <!-- Encabezado principal -->
+            <h5 class="text-center font-weight-bold mb-1">
+                DISTRIBUIDORA CUSCATLÁN, S.A. DE C.V.
+            </h5>
+            <h6 class="text-center">ICC LABORATORIES</h6>
+            <h6 class="text-center mb-3">ORDEN DE PRODUCCIÓN</h6>
+            <br>
+
+            <!-- Primera línea - Fecha y Código del producto -->
+            <div class="row mb-1">
+                <div class="col-md-5 pl-0">
+                    <!-- Reducido a col-md-5 y añadido pl-0 -->
+                    <h6 class="text-dark">
+                        <strong>FECHA DE LA ORDEN:</strong>
+                        <span>{{ formatDate(fechaOrden) }}</span>
+                    </h6>
+                </div>
+                <div class="col-md-7 pl-0">
+                    <!-- Aumentado a col-md-7 y añadido pl-0 -->
+                    <h6 class="text-dark">
+                        <strong>CÓDIGO DEL PRODUCTO:</strong>
+                        <span>{{ codigo_producto }}</span>
+                    </h6>
+                </div>
+            </div>
+
+            <!-- Segunda línea - Número de orden y Nombre del producto -->
+            <div class="row mb-3">
+                <div class="col-md-5 pl-0">
+                    <!-- Reducido a col-md-5 y añadido pl-0 -->
+                    <h6 class="text-dark">
+                        <strong>NÚMERO DE ORDEN:</strong>
+                        <span v-if="numero_orden">{{ numero_orden }}</span>
+                        <i v-else class="text-muted">Sin número</i>
+                    </h6>
+                </div>
+                <div class="col-md-7 pl-0">
+                    <!-- Aumentado a col-md-7 y añadido pl-0 -->
+                    <h6 class="text-dark">
+                        <strong>NOMBRE DEL PRODUCTO:</strong>
+                        <span>{{ nombre_producto }}</span>
+                    </h6>
+                </div>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-bordered text-center table-sm">
+                    <thead>
+                        <tr>
+                            <th colspan="3" class="py-2">CONTROL DEL AGUA</th>
+                        </tr>
+                        <tr class="thead-light text-dark">
+                            <th>CONTROL</th>
+                            <th>ESPECIFICACIÓN</th>
+                            <th>RESULTADO</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>PH</strong></td>
+                            <td>5.5 - 8.0</td>
+                            <td>
+                                <input
+                                    v-model="agua.ph"
+                                    type="text"
+                                    class="form-control form-control-sm text-center"
+                                    :disabled="aguaCargada"
+                                />
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>CONDUCTIVIDAD</strong></td>
+                            <td>&lt;= 20 µS/cm</td>
+                            <td>
+                                <input
+                                    v-model="agua.conductividad"
+                                    type="text"
+                                    class="form-control form-control-sm text-center"
+                                    :disabled="aguaCargada"
+                                />
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>CLORO LIBRE</strong></td>
+                            <td>1.5 - 2.5 ppm</td>
+                            <td>
+                                <input
+                                    v-model="agua.cloroLibre"
+                                    type="text"
+                                    class="form-control form-control-sm text-center"
+                                    :disabled="aguaCargada"
+                                />
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <th colspan="3" class="py-2">
+                                CONTROL DEL PRODUCTO
+                            </th>
+                        </tr>
+                        <tr class="thead-light text-dark">
+                            <th>CONTROL</th>
+                            <th>ESPECIFICACIÓN</th>
+                            <th>RESULTADO</th>
+                        </tr>
+                        <tr>
+                            <td><strong>PH</strong></td>
+                            <td>{{ producto.especificaciones.ph }}</td>
+                            <td>
+                                <input
+                                    v-model="producto.ph"
+                                    type="text"
+                                    class="form-control form-control-sm text-left defblue1"
+                                    :disabled="modoLectura"
+                                />
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>VISCOSIDAD</strong></td>
+                            <td>{{ producto.especificaciones.viscosidad }}</td>
+                            <td>
+                                <input
+                                    v-model="producto.viscosidad"
+                                    type="text"
+                                    class="form-control form-control-sm text-left defblue1"
+                                    :disabled="modoLectura"
+                                />
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>DENSIDAD</strong></td>
+                            <td>{{ producto.especificaciones.densidad }}</td>
+                            <td>
+                                <input
+                                    v-model="producto.densidad"
+                                    type="text"
+                                    class="form-control form-control-sm text-left defblue1"
+                                    :disabled="modoLectura"
+                                />
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>APARIENCIA</strong></td>
+                            <td>IGUAL AL ESTANDAR</td>
+                            <td>
+                                <input
+                                    type="checkbox"
+                                    v-model="producto.apariencia"
+                                    class="form-check-input"
+                                    :disabled="!puedeEditarCalidadVisual"
+                                />
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>COLOR</strong></td>
+                            <td>IGUAL AL ESTANDAR</td>
+                            <td>
+                                <input
+                                    type="checkbox"
+                                    v-model="producto.color"
+                                    class="form-check-input"
+                                    :disabled="!puedeEditarCalidadVisual"
+                                />
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>OLOR</strong></td>
+                            <td>IGUAL AL ESTANDAR</td>
+                            <td>
+                                <input
+                                    type="checkbox"
+                                    v-model="producto.olor"
+                                    class="form-check-input"
+                                    :disabled="!puedeEditarCalidadVisual"
+                                />
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="align-top align-middle">
+                                <strong>OBSERVACIONES</strong>
+                            </td>
+                            <td colspan="2">
+                                <textarea
+                                    class="form-control mt-2 defblue1"
+                                    rows="3"
+                                    v-model="observaciones"
+                                    placeholder="Escriba aquí..."
+                                    :disabled="modoLectura"
+                                ></textarea>
+                            </td>
+                        </tr>
+
+                        <tr class="thead-light">
+                            <th>REALIZÓ</th>
+                            <th>VERIFICÓ</th>
+                            <th>AUTORIZÓ</th>
+                        </tr>
+                        <tr>
+                            <td>{{ firmas.realizo.nombre || "N/A" }}</td>
+                            <td>{{ firmas.verifico.nombre || "N/A" }}</td>
+                            <td>{{ firmas.autorizo.nombre || "N/A" }}</td>
+                        </tr>
+                        <tr class="font-weight-bold">
+                            <td>FIRMA</td>
+                            <td>FIRMA</td>
+                            <td>FIRMA</td>
+                        </tr>
+
+                        <tr class="text-muted small">
+                            <td>ANALISTA DE CALIDAD</td>
+                            <td>AUXILIAR/SUPERVISOR DE CALIDAD</td>
+                            <td>JEFE CONTROL DE CALIDAD</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="d-flex justify-content-end mt-4">
+                <!-- Botones para rol analista cuando el estado es 0 o null -->
+                <template
+                    v-if="
+                        has_cap('cap-calidad') &&
+                        (estado === 0 || estado === null)
+                    "
+                >
+                    <button @click="guardar" class="btn btn-success btn-md">
+                        Guardar
+                    </button>
+                </template>
+                <!-- <button 
+                    v-if="modoLectura && (has_cap('cap-calidad') || has_cap('cap-materiaprima'))" 
+                    @click="habilitarEdicion" 
+                    class="btn btn-warning btn-sm me-2">
+                    Modificar
+                </button> -->
+
+                <!-- Botón Verificar para supervisor cuando estado es 1 -->
+                <button
+                    v-if="
+                        (has_cap('cap-supcalidad') ||
+                            has_cap('cap-auxcontrol-calidad')) &&
+                        estado === 1
+                    "
+                    @click="verificarOrden"
+                    class="btn btn-success"
+                >
+                    Verificar
+                </button>
+
+                <!-- Botón Autorizar para gerente cuando estado es 2 -->
+                <button
+                    v-if="has_cap('cap-jefecontrol-calidad') && estado === 2"
+                    @click="autorizarOrden"
+                    class="btn btn-success"
+                >
+                    Autorizar
+                </button>
+                <button
+                    type="button"
+                    v-if="(has_cap('cap-jefecontrol-calidad') 
+                        || has_cap('cap-supcalidad') 
+                        || has_cap('cap-calidad') 
+                        || has_cap('cap-auxcontrol-calidad')) 
+                        && estado === 3"
+                    @click="generatedReport"
+                    class="btn btn-dark"
+                >
+                    <i class="bi bi-file-earmark-pdf"></i> Generar Reporte
+                </button>
+
+                <!-- <button
+                    type="button"
+                    v-if="(has_cap('cap-jefecontrol-calidad') || has_cap('cap-supcalidad') || has_cap('cap-auxcontrol-calidad')) && estado === 3"
+                    @click="generatedReport"
+                    class="btn btn-dark"
+                >
+                    <i class="bi bi-file-earmark-pdf"></i> Generar Reporte
+                </button> -->
+            </div>
+        </div>
+    </div>
+</template>
+
+<script>
+const {
+    getAnalisisAgua,
+    getControlProductoByOrder,
+    createControlProducto,
+    verificarControlProducto,
+    autorizarControlProducto,
+    downloadControlProductoReport,
+} = require("../service.js");
+
+export default {
+    props: {
+        orderData: {
+            type: Object,
+            default: () => ({}),
+        },
+        currentUser: {
+            type: Object,
+            default: () => ({
+                nombre: "Usuario Actual",
+                rol: "analista",
+            }),
+        },
+    },
+    data() {
+        return {
+            modoLectura: false,
+            observaciones: "",
+            agua: {
+                ph: "",
+                conductividad: "",
+                cloroLibre: "",
+            },
+            producto: {
+                ph: "",
+                viscosidad: "",
+                    fecha: null,
+                    firmado: false,
+                    rol: "analista",
+                },
+                verifico: {
+                    nombre: "",
+                    fecha: null,
+                    firmado: false,
+                    rol: "supervisor",
+                },
+                autorizo: {
+                    nombre: "",
+                    fecha: null,
+                    firmado: false,
+                    rol: "gerente",
+                },
+            },
+            aguaCargada: false,
+            loading: false,
+            error: null,
+            estado: null,
+            codigo_producto:
+                this.orderData.code_product ||
+                this.orderData.producto?.code_product ||
+                this.orderData.producto?.product_code ||
+                "",
+            nombre_producto:
+                this.orderData.product ||
+                this.orderData.producto?.product ||
+                this.orderData.producto?.product_name ||
+                "",
+            fecha_orden: this.orderData.created_at || null,
+            validationErrors: {
+                ph: false,
+                viscosidad: false,
+                densidad: false,
+                checkboxes: false,
+            },
+        };
+    },
+    computed: {
+        // numero_orden() {
+        //     // Acceso correcto al número de orden según la estructura del payload
+        //     return this.orderData.producto?.numero_orden || "";
+        // },
+        fechaOrden() {
+            // Usar created_at del producto si existe, sino fecha actual
+            return this.orderData.producto?.created_at || new Date();
+        },
+        numero_orden() {
+            // Primero verifica si viene directamente en orderData
+            if (this.orderData.numero_orden) {
+                return this.orderData.numero_orden;
+            }
+
+            // Luego verifica si viene en orderData.producto
+            if (
+                this.orderData.producto &&
+                this.orderData.producto.numero_orden
+            ) {
+                return this.orderData.producto.numero_orden;
+            }
+
+            // Verificar si viene como num_id desde mix_orders
+            if (this.orderData.producto?.num_id) {
+                return this.orderData.producto.num_id;
+            }
+
+            // Finalmente verifica otros nombres comunes como "num" o "order_number"
+            return this.orderData.num || this.orderData.order_number || "";
+        },
+        puedeEditarCalidadVisual() {
+            return (this.estado === null) && this.has_cap('cap-calidad');
+        }
+    },
+    getEspecificacion(key) {
+        return (
+            this.producto?.especificaciones?.[key] ||
+            this.orderData?.[`especificaciones_${key}`] ||
+            "N/A"
+        );
+    },
+    mounted() {
+        console.log("Componente montado. Datos recibidos:", this.orderData);
+
+        this.cargarDatosIniciales();
+    },
+    methods: {
+        has_cap(e) {
+            return window.has_cap == undefined ? false : window.has_cap(e);
+        },
+        getCurrentUser() {
+            if (typeof window.getCurrentUser === "function") {
+                return window.getCurrentUser();
+            }
+            return { nombre: "Usuario desconocido", rol: "invitado" };
+        },
+        formatDate(date, format = "DD/MM/YYYY") {
+            // Si no hay fecha, usar la actual
+            if (!date) {
+                return this.getCurrentDateFormatted();
+            }
+
+            // Si es string, convertir a Date
+            const dateObj = typeof date === "string" ? new Date(date) : date;
+
+            // Verificar si es una fecha válida
+            if (isNaN(dateObj.getTime())) {
+                return this.getCurrentDateFormatted();
+            }
+
+            const day = dateObj.getDate().toString().padStart(2, "0");
+            const month = (dateObj.getMonth() + 1).toString().padStart(2, "0");
+            const year = dateObj.getFullYear();
+
+            return format
+                .replace("DD", day)
+                .replace("MM", month)
+                .replace("YYYY", year);
+        },
+
+        getCurrentDateFormatted() {
+            const now = new Date();
+            return this.formatDate(now, "DD/MM/YYYY");
+        },
+
+        validateRequiredFields() {
+            this.validationErrors.ph = !this.producto.ph;
+            this.validationErrors.viscosidad = !this.producto.viscosidad;
+            this.validationErrors.densidad = !this.producto.densidad;
+
+            return (
+                !this.validationErrors.ph &&
+                !this.validationErrors.viscosidad &&
+                !this.validationErrors.densidad &&
+                !this.validationErrors.checkboxes
+            );
+        },
+        habilitarEdicion() {
+            this.modoLectura = false;
+        },
+        // formatDate(dateString) {
+        //     if (!dateString) return '';
+        //     const date = new Date(dateString);
+        //     return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+        // },
+        generatedReport() {
+            if (!this.numero_orden) {
+                alert("No hay número de orden para generar el reporte.");
+                return;
+            }
+            downloadControlProductoReport(this.numero_orden);
+        },
+        async cargarDatosIniciales() {
+            this.loading = true;
+            this.error = null;
+            // Solo inicializar si no hay valores ya establecidos
+            if (!this.codigo_producto) {
+                this.codigo_producto =
+                    this.orderData.code_product ||
+                    this.orderData.producto?.code_product ||
+                    this.orderData.producto?.product_code ||
+                    "";
+            }
+            if (!this.nombre_producto) {
+                this.nombre_producto =
+                    this.orderData.product ||
+                    this.orderData.producto?.product ||
+                    this.orderData.producto?.product_name ||
+                    "";
+            }
+            try {
+                // Primero cargar siempre el análisis de agua
+                await this.cargarAnalisisAgua();
+
+                // Si hay número de orden, intentar cargar control de producto existente
+                if (this.numero_orden) {
+                    await this.cargarControlProductoExistente();
+                }
+            } catch (e) {
+                console.error("Error cargando datos iniciales:", e);
+                this.error = "No se pudieron cargar los datos iniciales";
+            } finally {
+                this.loading = false;
+            }
+        },
+
+        async cargarAnalisisAgua() {
+            try {
+                // 🔹 PRIORIDAD 1: Verificar si vienen datos de análisis de agua desde mix_orders
+                if (this.orderData?.producto?.analisis_agua) {
+                    const analisisDesdeOrden = this.orderData.producto.analisis_agua;
+                    
+                    this.agua = {
+                        ph: analisisDesdeOrden.resultado_ph || "",
+                        conductividad: analisisDesdeOrden.resultado_conductividad || "",
+                        cloroLibre: analisisDesdeOrden.resultado_cloro_libre || "",
+                    };
+                    this.aguaCargada = true;
+                    console.log("✅ Análisis de agua cargado desde mix_orders:", this.agua);
+                    return; // Salir temprano, no consultar el análisis activo
+                }
+
+                // 🔹 PRIORIDAD 2: Si no hay datos en la orden, cargar el análisis activo actual
+                const response = await getAnalisisAgua();
+
+                // Verificar si la respuesta tiene los datos esperados
+                if (
+                    response &&
+                    (response.resultado_ph ||
+                        response.resultado_conductividad ||
+                        response.resultado_cloro_libre)
+                ) {
+                    this.agua = {
+                        ph: response.resultado_ph || "",
+                        conductividad: response.resultado_conductividad || "",
+                        cloroLibre: response.resultado_cloro_libre || "",
+                    };
+                    this.aguaCargada = true;
+                    console.log("✅ Análisis de agua cargado desde análisis activo:", this.agua);
+                } else {
+                    // Mantener los valores por defecto
+                    this.agua = {
+                        ph: "",
+                        conductividad: "",
+                        cloroLibre: "",
+                    };
+                    this.aguaCargada = false;
+                }
+            } catch (error) {
+                console.error("Error al cargar análisis de agua:", error);
+                this.error = "No se pudo cargar el análisis de agua";
+                // Inicializar con valores vacíos si falla
+                this.agua = {
+                    ph: "",
+                    conductividad: "",
+                    cloroLibre: "",
+                };
+            }
+        },
+
+        async cargarControlProductoExistente() {
+            try {
+                const response = await getControlProductoByOrder(
+                    this.numero_orden
+                );
+
+                if (!response || !response.producto) {
+                    console.log(
+                        "No existe control de producto para esta orden"
+                    );
+                    return;
+                }
+
+                const controlExistente = response.producto;
+                console.log("Datos recibidos del backend:", controlExistente);
+
+                // Solo actualizar agua si hay datos en el control existente
+                if (
+                    controlExistente.ph_agua ||
+                    controlExistente.conductividad_agua ||
+                    controlExistente.cloro_libre_agua
+                ) {
+                    this.agua = {
+                        ph: controlExistente.ph_agua || this.agua.ph,
+                        conductividad:
+                            controlExistente.conductividad_agua ||
+                            this.agua.conductividad,
+                        cloroLibre:
+                            controlExistente.cloro_libre_agua ||
+                            this.agua.cloroLibre,
+                    };
+                    this.aguaCargada = true;
+                }
+
+                // Resto del código para cargar producto, firmas, etc...
+                this.producto = {
+                    ph: controlExistente.ph_producto || "",
+                    viscosidad: controlExistente.viscosidad_producto || "",
+                    densidad: controlExistente.densidad_producto || "",
+                    apariencia: Boolean(controlExistente.apariencia_producto),
+                    color: Boolean(controlExistente.color_producto),
+                    olor: Boolean(controlExistente.olor_producto),
+                    especificaciones: {
+                        ph:
+                            controlExistente.especificacion_ph_producto?.trim() ||
+                            this.orderData.producto?.especificaciones_ph?.trim() ||
+                            this.orderData.especificaciones_ph?.trim() ||
+                            "",
+                        viscosidad:
+                            controlExistente.especificacion_viscosidad_producto?.trim() ||
+                            this.orderData.producto?.especificaciones_viscosidad?.trim() ||
+                            this.orderData.especificaciones_viscosidad?.trim() ||
+                            "",
+                        densidad:
+                            controlExistente.especificacion_densidad_producto?.trim() ||
+                            this.orderData.producto?.especificaciones_densidad?.trim() ||
+                            this.orderData.especificaciones_densidad?.trim() ||
+                            "",
+                    },
+
+                };
+
+                this.observaciones =
+                    controlExistente.observaciones_producto || "";
+                this.estado = controlExistente.estado ?? null;
+                this.modoLectura = this.estado !== null && this.estado !== 0;
+                // MODIFICACIÓN IMPORTANTE Solo actualizar si los valores del control existente tienen contenido
+                if (controlExistente.codigo_producto) {
+                    this.codigo_producto = controlExistente.codigo_producto;
+                }
+                if (controlExistente.nombre_producto) {
+                    this.nombre_producto = controlExistente.nombre_producto;
+                }
+
+                this.firmas = {
+                    realizo: {
+                        nombre:
+                            controlExistente.usuario_crea ||
+                            this.currentUser.nombre,
+                        fecha: controlExistente.created_at || null,
+                        firmado: !!controlExistente.usuario_crea,
+                        rol: controlExistente.rol_crea || "analista",
+                    },
+                    verifico: {
+                        nombre: controlExistente.usuario_verifica || "",
+                        fecha: controlExistente.updated_at || null,
+                        firmado: !!controlExistente.usuario_verifica,
+                        rol: controlExistente.rol_verifica || "supervisor",
+                    },
+                    autorizo: {
+                        nombre: controlExistente.usuario_autoriza || "",
+                        fecha: controlExistente.updated_at || null,
+                        firmado: !!controlExistente.usuario_autoriza,
+                        rol: controlExistente.rol_autoriza || "gerente",
+                    },
+                };
+
+                this.$forceUpdate();
+            } catch (e) {
+                console.error("Error cargando control existente:", e);
+                this.error = "No se pudo cargar la información existente";
+            }
+        },
+
+        async guardar() {
+            if (!this.validateRequiredFields()) {
+                let errorMessage =
+                    "Por favor complete todos los campos requeridos:";
+
+                if (this.validationErrors.ph) errorMessage += "\n- PH";
+                if (this.validationErrors.viscosidad)
+                    errorMessage += "\n- Viscosidad";
+                if (this.validationErrors.densidad)
+                    errorMessage += "\n- Densidad";
+                if (this.validationErrors.checkboxes)
+                    errorMessage +=
+                        "\n- Campos de calidad (Apariencia, Color, Olor)";
+
+                StatusHandler.ShowStatus(
+                    errorMessage,
+                    StatusHandler.OPERATION.DEFAULT,
+                    StatusHandler.STATUS.FAIL
+                );
+                return false;
+            }
+
+            if (!this.numero_orden) {
+                alert("No hay número de orden asignado. No se puede guardar.");
+                return false;
+            }
+
+            this.loading = true;
+            StatusHandler.LShow();
+
+            const dataToSave = {
+                numero_orden: this.numero_orden,
+                codigo_producto: this.codigo_producto,
+                nombre_producto: this.nombre_producto,
+                ph_agua: this.agua.ph,
+                conductividad_agua: this.agua.conductividad,
+                cloro_libre_agua: this.agua.cloroLibre,
+                ph_producto: this.producto.ph,
+                especificacion_ph_producto: this.producto.especificaciones.ph,
+                viscosidad_producto: this.producto.viscosidad,
+                especificacion_viscosidad_producto:
+                    this.producto.especificaciones.viscosidad,
+                densidad_producto: this.producto.densidad,
+                especificacion_densidad_producto:
+                    this.producto.especificaciones.densidad,
+                apariencia_producto: this.producto.apariencia,
+                color_producto: this.producto.color,
+                olor_producto: this.producto.olor,
+                observaciones_producto: this.observaciones,
+                usuario_crea: this.currentUser.nombre,
+                rol_crea: this.currentUser.rol,
+                estado: 1, // Cambiamos a estado 1 al guardar (listo para verificar)
+            };
+
+            try {
+                let controlExistente;
+                try {
+                    const response = await getControlProductoByOrder(
+                        this.numero_orden
+                    );
+                    controlExistente = response.data;
+                } catch (error) {
+                    if (error.response?.status === 404) {
+                        controlExistente = null;
+                    } else {
+                        throw error;
+                    }
+                }
+
+                if (controlExistente) {
+                    await updateControlProducto(this.numero_orden, dataToSave);
+                    StatusHandler.ShowStatus(
+                        "Control de producto actualizado correctamente",
+                        StatusHandler.OPERATION.UPDATE,
+                        StatusHandler.STATUS.SUCCESS
+                    );
+                } else {
+                    await createControlProducto(dataToSave);
+                    StatusHandler.ShowStatus(
+                        "Control de producto creado correctamente",
+                        StatusHandler.OPERATION.CREATE,
+                        StatusHandler.STATUS.SUCCESS
+                    );
+                }
+
+                await this.cargarControlProductoExistente();
+                return true;
+            } catch (error) {
+                console.error("Error al guardar:", error);
+                let errorMsg = "Error al guardar los datos";
+
+                if (error.response) {
+                    errorMsg =
+                        error.response.data.message ||
+                        error.response.data.error ||
+                        `Error ${error.response.status}: ${error.response.statusText}`;
+                }
+
+                StatusHandler.ShowStatus(
+                    errorMsg,
+                    StatusHandler.OPERATION.DEFAULT,
+                    StatusHandler.STATUS.FAIL
+                );
+                return false;
+            } finally {
+                this.loading = false;
+                // StatusHandler.LClose();
+            }
+        },
+
+        limpiar() {
+            this.producto.ph = "";
+            this.producto.viscosidad = "";
+            this.producto.densidad = "";
+            this.producto.apariencia = false;
+            this.producto.color = false;
+            this.producto.olor = false;
+            this.observaciones = "";
+        },
+
+         async verificarOrden() {
+            // Mostrar confirmación
+            const confirmacion = await Swal.fire({
+                title: "¿Estás seguro?",
+                text: "¿Deseas verificar esta orden de producción?",
+                icon: "question",
+                showCancelButton: true,
+                confirmButtonColor: "#3085d6",
+                cancelButtonColor: "#d33",
+                confirmButtonText: "Sí, verificar",
+                cancelButtonText: "Cancelar",
+            });
+
+            if (!confirmacion.isConfirmed) return;
+
+            this.loading = true;
+            StatusHandler.LShow();
+
+            try {
+                // Llamar al servicio específico de verificación
+                const response = await verificarControlProducto(
+                    this.numero_orden
+                );
+
+                // Actualizar estado local
+                this.estado = 2;
+                this.firmas.verifico = {
+                    nombre: response.data.usuario_verifica,
+                    fecha:
+                        response.data.fecha_verificacion ||
+                        new Date().toISOString(),
+                    firmado: true,
+                    rol: response.data.rol_verifica,
+                };
+                this.modoLectura = true;
+
+                StatusHandler.ShowStatus(
+                    response.message || "Orden verificada correctamente",
+                    StatusHandler.OPERATION.UPDATE,
+                    StatusHandler.STATUS.SUCCESS
+                );
+            } catch (error) {
+                console.error("Error al verificar orden:", error);
+                let errorMsg = "Error al verificar la orden";
+
+                if (error.response) {
+                    errorMsg =
+                        error.response.data.message ||
+                        error.response.data.error ||
+                        `Error ${error.response.status}: ${error.response.statusText}`;
+                }
+
+                StatusHandler.ShowStatus(
+                    errorMsg,
+                    StatusHandler.OPERATION.DEFAULT,
+                    StatusHandler.STATUS.FAIL
+                );
+            } finally {
+                this.loading = false;
+                // StatusHandler.LClose();
+            }
+        },
+       async autorizarOrden() {
+
+            if (this.validationErrors.checkboxes) {
+                await StatusHandler.ValidationMsg('Debe marcar Apariencia, Color y Olor antes de autorizar la orden.');
+                return;
+            }
+
+            const confirmacion = await Swal.fire({
+                title: "¿Estás seguro?",
+                text: "¿Deseas autorizar esta orden de producción?",
+                icon: "warning",
+                showCancelButton: true,
+                confirmButtonColor: "#3085d6",
+                cancelButtonColor: "#d33",
+                confirmButtonText: "Sí, autorizar",
+                cancelButtonText: "Cancelar",
+            });
+
+            if (!confirmacion.isConfirmed) return;
+
+            this.loading = true;
+            StatusHandler.LShow();
+
+            try {
+                const payload = {
+                    numero_orden: this.numero_orden,
+                    apariencia_producto: this.producto.apariencia,
+                    color_producto: this.producto.color,
+                    olor_producto: this.producto.olor,
+                };
+
+                const response = await autorizarControlProducto(payload);
+
+                this.estado = 3;
+                this.firmas.autorizo = {
+                    nombre: response.data.usuario_autoriza,
+                    fecha: response.data.fecha_autorizacion || new Date().toISOString(),
+                    firmado: true,
+                    rol: response.data.rol_autoriza,
+                };
+                this.modoLectura = true;
+
+                StatusHandler.ShowStatus(
+                    response.message || "Orden autorizada correctamente",
+                    StatusHandler.OPERATION.UPDATE,
+                    StatusHandler.STATUS.SUCCESS
+                );
+
+                return true;
+            } catch (error) {
+                console.error("Error al autorizar orden:", error);
+                let errorMsg = "Error al autorizar la orden";
+
+                if (error.response) {
+                    errorMsg =
+                        error.response.data.message ||
+                        error.response.data.error ||
+                        `Error ${error.response.status}: ${error.response.statusText}`;
+                }
+
+                StatusHandler.ShowStatus(
+                    errorMsg,
+                    StatusHandler.OPERATION.DEFAULT,
+                    StatusHandler.STATUS.FAIL
+                );
+                return false;
+            } finally {
+                this.loading = false;
+                // StatusHandler.LClose();
+            }
+        },
+
+    },
+};
+</script>
+
+<style scoped>
+.table td,
+.table th {
+    vertical-align: middle;
+}
+.table-bordered {
+    border: 2px solid black;
+}
+.table-bordered th,
+.table-bordered td {
+    border: 1px solid black !important;
+}
+.product-info {
+    border-left: 4px solid #007bff;
+    background-color: #f8f9fa;
+}
+.materials-list {
+    max-height: 300px;
+    overflow-y: auto;
+    margin-top: 15px;
+}
+.materials-list table {
+    font-size: 0.85rem;
+}
+</style>

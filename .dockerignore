@@ -1,0 +1,6 @@
+.git
+node_modules
+storage/logs/*.log
+vendor/*/**/.git
+docker/*.log
+*.md

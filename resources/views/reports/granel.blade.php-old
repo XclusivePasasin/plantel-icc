@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+
+<body>
+
+    <style>
+
+.collapsetable {
+            border-collapse: collapse;
+            border: 3px solid black;
+        }
+
+        .page-break {
+            page-break-after: always;
+        }
+
+        /*START styles comunes */
+        .text-center {
+            text-align: center;
+        }
+
+        .fw-b1 {
+            font-weight: bold;
+        }
+
+        .bb-1 {
+            border-bottom: 1px solid #b5afaf;
+        }
+
+        .m-0 {
+            margin: 0px !important;
+        }
+
+        .p-0 {
+            padding: 0px !important;
+        }
+
+        .pt-5 {
+            padding-top: 5px;
+        }
+
+        .pl-5 {
+            padding-left: 5px;
+        }
+
+        .mt-1 {
+            margin-top: 15px;
+        }
+
+        .dw100 {
+            width: 100%;
+        }
+
+        .fsm1 {
+            font-size: 80%;
+        }
+
+        .fsm2 {
+            font-size: 78%;
+        }
+
+        .fsm3 {
+            font-size: 65%;
+        }
+
+        /*END styles comunes */
+
+        .lumbral1 {
+            width: 22%;
+        }
+
+        .lumbral2 {
+            width: 3%;
+        }
+
+        .lumbral3 {
+            width: 75%;
+        }
+
+        .lumbral4 {
+            width: 22%;
+        }
+
+        .lumbral5 {
+            width: 3%;
+        }
+
+        .lumbral6 {
+            width: 25%;
+        }
+
+        .lumbral7 {
+            width: 22%;
+        }
+
+        .lumbral8 {
+            width: 3%;
+        }
+
+        .lumbral9 {
+            width: 25%;
+        }
+
+        .dtl-header th {
+            border-top: 2px solid black;
+            border-bottom: 2px solid black;
+        }
+
+        .border-r1 {
+            border: 2px solid black;
+            padding: 5px;
+            border-radius: 10px;
+        }
+
+        .separator1 {
+            border-bottom: 1px dashed black;
+            border-top: 1px dashed black;
+            height: 3px;
+        }
+
+
+
+    .left {
+        float: left;
+        width: 125px;
+        text-align: right;
+        margin: 2px 10px;
+        display: inline
+    }
+    .right {
+        float: left;
+        text-align: left;
+        margin: 2px 10px;
+        display: inline
+    }
+    .contenedor{
+        width: 100%;
+    }
+    </style>
+
+
+    <p class="text-center fw-b1 p-0 m-0">ICC LABORATORIES</p> <br>
+    <p class="text-center fw-b1 p-0 m-0">ETIQUETA DE IDENTIFICACION DE GRANELES</p><br>
+    <div style="border-style: solid; border-width:2px; width:100%">
+    <div style="width: 100%;">
+        <pre> PRODUCTO:   <u style="color: #0000FF; font-weight: bold;">{{$data->granel->producto. str_repeat(" ", 59 - strlen($data->granel->producto))}}</u></pre>
+    </div>    
+    <div style="position:relative; margin: 20px 0 0 10px; width:100%;">
+        <pre>No DE LOTE: <u style="color: #0000FF; font-weight: bold;">{{$data->granel->lote. str_repeat(" ", 11 - strlen($data->granel->lote))}}</u> No ORDEN: <u style="color: #0000FF; font-weight: bold;">{{$data->granel->orden. str_repeat(" ", 12 - strlen($data->granel->orden))}}</u></pre>
+    </div>
+    <div style="position:relative; margin: 20px 0 0 10px; width:100%;">
+        <pre>No BATCH: <u style="color: #0000FF; font-weight: bold;">{{$data->granel->batch. str_repeat(" ", 11 - strlen($data->granel->batch))}}</u> No TANQUE: <u style="color: #0000FF; font-weight: bold;">{{$data->granel->tanque. str_repeat(" ", 11 - strlen($data->granel->tanque))}}</u></pre>
+    </div>
+    <div style="position:relative; margin: 20px 0 0 10px; width:100%;">
+        <pre>FECHA DE FABRICACIÓN: <u style="color: #0000FF; font-weight: bold;">{{$data->granel->fecha_fabricacion}}</u> CANTIDAD: <u style="color: #0000FF; font-weight: bold;">{{$data->granel->cantidad. str_repeat(" ", 12 - strlen($data->granel->cantidad))}}</u></pre>
+    </div>  
+    <div style="position:relative; margin: 20px 0 0 10px; width:100%;">
+        <pre>FECHA DE EXPIRACIÓN: <u style="color: #0000FF; font-weight: bold;">{{$data->granel->fecha_expiracion}}</u></pre>
+    </div> 
+    <div style="position:relative; margin: 20px 0 0 10px; width:100%;">
+        <pre>PROCESO: <u style="color: #0000FF; font-weight: bold;">{{$data->granel->proceso. str_repeat(" ", 20 - strlen($data->granel->proceso))}}</u> COLOR IGUAL A PATRON <u style="color: #0000FF; font-weight: bold;">{{$data->granel->cv1. str_repeat(" ", 9 - strlen($data->granel->cv1))}}</u> <u style="color: #0000FF; font-weight: bold;">{{$data->granel->cv2. str_repeat(" ", 9 - strlen($data->granel->cv2))}}</u></pre>
+    </div>
+    <div style="position:relative; margin: 20px 0 0 10px; width:100%;">
+        <pre><b>PARÁMETROS DE PRODUCTO A GRANEL:</b></pre>
+    </div>
+    <div style="position:relative; margin: 20px 0 0 10px; width:100%;">
+        <pre>VISCOSIDAD(cps): 
+            <u style="color: #0000FF; font-weight: bold;">
+                <?php echo e($data->granel->viscosidad . str_repeat(" ", max(0, 11 - strlen($data->granel->viscosidad)))); ?>
+            </u>   
+            
+            PH: 
+            <u style="color: #0000FF; font-weight: bold;">
+                <?php echo e($data->granel->ph . str_repeat(" ", max(0, 10 - strlen($data->granel->ph)))); ?>
+            </u>  
+            
+            TEMP. °C 
+            <u style="color: #0000FF; font-weight: bold;">
+                <?php echo e($data->granel->temperatura . str_repeat(" ", max(0, 16 - strlen($data->granel->temperatura)))); ?>
+            </u>
+            </pre>
+            
+    </div>
+
+    <div style="position:relative; margin: 20px 0 0 10px; width:100%;">
+        <pre>RESPONSABLES: <u style="color: #0000FF; font-weight: bold;">{{str_replace(array("\n", "\r", "\n\r"), " ", $data->granel->responsables). str_repeat(" ", 28 - strlen($data->granel->responsables))}}</u> EQUIPO: <u style="color: #0000FF; font-weight: bold;">{{$data->granel->equipo. str_repeat(" ", 21 - strlen($data->granel->equipo))}}</u></pre>
+    </div>
+    <div style="position:relative; margin: 20px 0 0 10px; width:100%;">
+        <pre>FIRMA: ___________________________  SELLO: _______________</pre>
+    </div>
+    <div style="position:relative; margin: 40px 0 0 500px; width:100%;">
+        <pre>Codigo: CC-PE0021-10</pre>
+    </div>   
+    </div>        
+</body>
+
+</html>

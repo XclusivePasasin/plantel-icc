@@ -1,0 +1,48 @@
+version: '3.8'
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: php:8.0-fpm
+    container_name: laravel_app
+    working_dir: /var/www
+    volumes:
+      - ./:/var/www
+      - ./php/local.ini:/usr/local/etc/php/conf.d/local.ini
+    networks:
+      - laravel
+
+  webserver:
+    image: php:8.0-apache
+    container_name: laravel_webserver
+    working_dir: /var/www
+    volumes:
+      - ./:/var/www
+      - ./apache/000-default.conf:/etc/apache2/sites-available/000-default.conf
+    ports:
+      - "8000:80"
+    networks:
+      - laravel
+    command: /bin/bash -c "docker-php-ext-install pdo pdo_mysql && a2enmod rewrite && apache2-foreground"
+
+  db:
+    image: mariadb:10.5.26
+    container_name: laravel_db
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: gruposansir_unilever2
+      MYSQL_USER: root
+      MYSQL_PASSWORD: root
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+    networks:
+      - laravel
+
+networks:
+  laravel:
+
+volumes:
+  db_data:

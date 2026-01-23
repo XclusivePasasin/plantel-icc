@@ -1,0 +1,107 @@
+
+@import '~bootstrap-icons/font/bootstrap-icons.css';
+
+.lds-dual-ring {
+    display: inline-block;
+    width: 80px;
+    height: 80px;
+  }
+  .lds-dual-ring:after {
+    content: " ";
+    display: block;
+    width: 64px;
+    height: 64px;
+    margin: 8px;
+    border-radius: 50%;
+    border: 6px solid #ffd333;
+    border-color: #ffd333 transparent #ffd333 transparent;
+    animation: lds-dual-ring 1.2s linear infinite;
+  }
+  @keyframes lds-dual-ring {
+    0% {
+      transform: rotate(0deg);
+    }
+    100% {
+      transform: rotate(360deg);
+    }
+  }
+
+
+  .sa-nav__menu-item.sa-nav__menu-item--has-icon.active{
+    background-color: #4d565c !important;
+  }
+  
+  .brand-fix2{
+    display: block;
+    margin: auto;
+    width: 100%;
+    max-width: 250px;
+    background-color: #f09322;
+    padding: 10px 40px;    
+    color: white;
+  }
+  
+  .brand-fix3{
+    width: 65px;
+    height: 65px;
+    background-color: #e29142;
+    color: white;
+    border-radius: 50%;
+    margin: auto;
+    padding: 5px;    
+  }
+
+  .btnfix1{
+    background-color: #393939;
+    color: white;
+    border: 1px solid #393939;
+    font-size: 1.1rem;
+    padding: 5px 15px;
+    border-radius: 25px;
+    font-weight: bold;    
+  }
+
+  .btnfix1:hover{
+    background-color: #585858;
+    border: 1px solid #393939;    
+  }
+
+  .headerfix1{
+    color: #e78e3a;
+    font-weight: bold;
+    font-size: 150%;
+  }
+
+  .separator1{
+    border-bottom: 1px dashed black;
+    border-top: 1px dashed black;
+    height: 3px;            
+}
+
+.leaf-success{
+  font-size: 30px;
+  border: 12px solid green;
+  border-radius: 50%;
+  height: 4rem;
+  width: 4rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: green;        
+}
+
+.leaf-warning{
+  font-size: 30px;
+  border: 12px solid rgb(243, 211, 27);
+  border-radius: 50%;
+  height: 4rem;
+  width: 4rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: rgb(243, 211, 27); 
+}
+
+.defblue1{
+  color: rgb(0, 0, 255) !important;
+}
