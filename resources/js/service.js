@@ -829,6 +829,25 @@ export async function obtenerLotePorOrden(numero_orden) {
     return response.data; // ✅ Retorna { message, lote }
 }
 
+/**
+ * Busca la orden de mezcla en la tabla granel
+ * Transforma el número de orden de empaque (ej: 12892-10) a orden de mezcla (ej: 12892-20)
+ * @param {String} numero_orden - Número de orden de empaque
+ * @returns {Promise} - Retorna { existe, lote, tanque, orden_mezcla }
+ */
+export async function buscarOrdenMezcla(numero_orden) {
+    try {
+        const response = await axios.post('/validacion-tanque/buscar-mezcla', {
+            query: numero_orden
+        });
+        return response.data;
+    } catch (error) {
+        console.error('Error en buscarOrdenMezcla:', error);
+        throw error;
+    }
+}
+
+
 /*
  * Obtiene especificaciones de una orden por código
  */

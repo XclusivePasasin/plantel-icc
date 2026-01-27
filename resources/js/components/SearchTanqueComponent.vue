@@ -103,6 +103,7 @@ export default {
           let ordenFormateada;
 
           if (response.data.origen === 'SAP') {
+            // 🆕 Orden nueva de SAP - siempre estado 0 para permitir edición inicial
             ordenFormateada = {
               numero_orden: response.data.orden.num,
               codigo_producto: response.data.orden.code_product,
@@ -116,10 +117,10 @@ export default {
               control_calidad: response.data.orden.control_calidad || '',
               lote: response.data.orden.lote || '',
               numero_tanque: response.data.orden.numero_tanque || '',
-              estado: response.data.orden.estado || 1
+              estado: 0 // ⬅️ Siempre 0 para órdenes nuevas de SAP
             };
           } else {
-            // ⚠️ Mapea directamente los campos de BD
+            // 💾 Orden existente en BD - respetar el estado guardado
             const v = response.data.orden;
             ordenFormateada = {
               numero_orden: v.numero_orden,
@@ -129,7 +130,7 @@ export default {
               control_calidad: v.control_calidad || '',
               lote: v.lote || '',
               numero_tanque: v.numero_tanque || '',
-              estado: v.estado || 1,
+              estado: v.estado ?? 1, // ⬅️ Respetar estado guardado (por defecto 1 si no existe)
               codigo_empaque: v.codigo_empaque || ''
             };
           }

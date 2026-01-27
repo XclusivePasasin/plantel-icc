@@ -228,6 +228,70 @@ class TanqueController extends Controller
         }
     }
 
+    /**
+     * Busca la orden de mezcla en la tabla granel.
+     * Transforma el número de orden de empaque (ej: 12892-10) a orden de mezcla (ej: 12892-20)
+     * y retorna el lote y tanque asociados.
+     */
+    public function buscarOrdenMezcla(Request $request)
+    {
+        try {
+            // 1️⃣ Obtener el número de orden de empaque
+            $numero_orden_empaque = trim($request->input('query'));
+            
+            // 2️⃣ Transformar al formato de orden de mezcla
+            // Ejemplo: "12892 - 10" → "12892-20" o "12892-10" → "12892-20"
+            $normalized = preg_replace('/\s+/', '', $numero_orden_empaque); // Quitar espacios
+            
+            // Separar por guión
+            $partes = explode('-', $normalized);
+            
+            if (count($partes) !== 2) {
+                return response()->json([
+                    'existe' => false,
+                    'msg'    => 'Formato de orden inválido. Debe ser: XXXXX-XX'
+                ]);
+            }
+            
+            // Cambiar el último número a 20
+            $numero_base = $partes[0];
+            $orden_mezcla = $numero_base . '-20';
+            
+            // 3️⃣ Buscar en la tabla granel
+            $granel = \DB::table('granel')
+                ->whereRaw("REPLACE(orden, ' ', '') = ?", [$orden_mezcla])
+                ->first();
+            
+            if (!$granel) {
+                return response()->json([
+                    'existe' => false,
+                    'msg'    => 'No se encontró la orden de mezcla en granel',
+                    'lote'   => 0,
+                    'tanque' => 0
+                ]);
+            }
+            
+            // 4️⃣ Retornar los datos encontrados
+            return response()->json([
+                'existe' => true,
+                'msg'    => 'Orden de mezcla encontrada',
+                'lote'   => $granel->lote ?? '',
+                'tanque' => $granel->tanque ?? '',
+                'orden_mezcla' => $orden_mezcla
+            ]);
+            
+        } catch (\Exception $e) {
+            Log::error("Error buscando orden de mezcla: " . $e->getMessage());
+            return response()->json([
+                'existe' => false,
+                'msg'    => 'Error al buscar orden de mezcla',
+                'error'  => $e->getMessage(),
+                'lote'   => 0,
+                'tanque' => 0
+            ], 500);
+        }
+    }
+
     
 
     // public function buscarOrden(Request $request)
