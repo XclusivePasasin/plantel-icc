@@ -12,7 +12,7 @@
       v-model="form.fecha_hora"
       type="datetime-local"
       class="form-control"
-      :readonly="!isEditableProduccion"
+      :readonly="!isEditableProduccion && !modoEdicionSupervisor"
     />
   </div>
 
@@ -55,7 +55,7 @@
       v-model="form.lote"
       type="text"
       class="form-control"
-      :readonly="!isEditableProduccion"
+      :readonly="!isEditableProduccion && !modoEdicionSupervisor"
     />
   </div>
 
@@ -66,38 +66,72 @@
       type="text"
       class="form-control"
       placeholder="Número de tanque"
-      :readonly="!isEditableProduccion"
+      :readonly="!isEditableProduccion && !modoEdicionSupervisor"
     />
   </div>
 </div>
 
 
 <div class="mt-6 w-full flex justify-end space-x-3">
+  <!-- Botón Guardar para Producción -->
   <button
-    v-if="has_cap('cap-produccion') && estado === 1"
+    v-if="has_cap('cap-produccion') && estado === 0 && !modoEdicionSupervisor"
     @click="guardarComoProduccion"
     class="btn btn-primary px-4"
   >
     <i class="bi bi-save"></i> Guardar
   </button>
 
+  <!-- Botón Modificar para Supervisor (solo si no está en modo edición) -->
   <button
-    v-if="has_cap('cap-supprod') && estado === 1"
+    v-if="has_cap('cap-supprod') && estado === 1 && !modoEdicionSupervisor"
+    @click="activarModoEdicion"
+    class="btn btn-warning px-4"
+  >
+    <i class="bi bi-pencil-square"></i> Modificar
+  </button>
+
+  <!-- Botones Guardar Cambios y Cancelar (solo en modo edición) -->
+  <button
+    v-if="has_cap('cap-supprod') && estado === 1 && modoEdicionSupervisor"
+    @click="cancelarEdicion"
+    class="btn btn-secondary px-4"
+  >
+    <i class="bi bi-x-circle"></i> Cancelar
+  </button>
+
+  <button
+    v-if="has_cap('cap-supprod') && estado === 1 && modoEdicionSupervisor"
+    @click="guardarCambiosSupervisor"
+    class="btn btn-primary px-4"
+  >
+    <i class="bi bi-save"></i> Guardar Cambios
+  </button>
+
+  <!-- Botón Verificar (solo si no está en modo edición) -->
+  <button
+    v-if="has_cap('cap-supprod') && estado === 1 && !modoEdicionSupervisor"
     @click="verificarOrden"
     class="btn btn-success px-4"
   >
     <i class="bi bi-check2-circle"></i> Verificar
   </button>
 
+  <!-- Botón Autorizar para Control de Calidad -->
+  <!-- Botón Autorizar para Control de Calidad -->
+  <!-- Visible si tiene permisos y el estado es >= 1. Bloqueado si no es 2 (Verificado) -->
   <button
-    v-if="(has_cap('cap-auxcontrol-calidad') || has_cap('cap-jefecontrol-calidad')) && estado === 2"
+    v-if="(has_cap('cap-auxcontrol-calidad') || has_cap('cap-jefecontrol-calidad')) && (estado === 1 || estado === 2)"
     @click="autorizarOrden"
     class="btn btn-success px-4"
+    :disabled="estado !== 2"
+    :title="estado !== 2 ? 'Debe ser verificado por un supervisor primero' : 'Autorizar orden'"
   >
     <i class="bi bi-shield-check"></i> Autorizar
   </button>
 
-  <button v-else-if="estado === 3" disabled class="btn btn-secondary px-4">
+  <!-- Estado Finalizado -->
+  <button v-if="estado === 3" disabled class="btn btn-secondary px-4">
     Información finalizada
   </button>
 </div>
@@ -165,11 +199,14 @@ export default {
         materiales: v.materiales || [],
       },
       estado: v.estado || 0,
+      modoEdicionSupervisor: false, // 🔧 Controla si el supervisor está editando
+      valoresOriginales: {}, // 🔧 Guarda los valores originales para restaurar al cancelar
     };
   },
   computed: {
     isEditableProduccion() {
-      return this.has_cap('cap-produccion') && (this.estado === 0 || this.estado === 1);
+      // Solo editable en estado 0 (sin guardar). Una vez guardado (estado 1), se bloquea
+      return this.has_cap('cap-produccion') && this.estado === 0;
     }
   },
   watch: {
@@ -285,10 +322,132 @@ export default {
       this.form.materiales = data.materiales || [];
       
       this.estado = data.estado || 0;
+
+      // 🔍 Buscar orden de mezcla si lote y tanque están vacíos
+      this.$nextTick(() => {
+        this.buscarYAutocompletarOrdenMezcla();
+      });
     },
     reset() {
       this.setForm({});
     },
+
+    /**
+     * 🔍 Busca la orden de mezcla en la tabla granel y auto-completa lote y tanque
+     */
+    async buscarYAutocompletarOrdenMezcla() {
+      // Validar que haya número de orden
+      if (!this.form.numero_orden || this.form.numero_orden.trim() === '') {
+        return;
+      }
+
+      // Solo buscar si los campos están vacíos
+      if ((this.form.lote && this.form.lote.trim() !== '') || 
+          (this.form.numeroTanque && this.form.numeroTanque.trim() !== '')) {
+        console.log('⏭️ Lote o Tanque ya tienen valor, no se busca orden de mezcla');
+        return;
+      }
+
+      try {
+        console.log('🔍 Buscando orden de mezcla para:', this.form.numero_orden);
+        const { buscarOrdenMezcla } = require("../service.js");
+        const response = await buscarOrdenMezcla(this.form.numero_orden);
+        
+        if (response.existe) {
+          // Auto-completar los campos
+          this.form.lote = response.lote || '';
+          this.form.numeroTanque = response.tanque || '';
+          
+          console.log('✅ Datos de mezcla cargados automáticamente:', {
+            lote: response.lote,
+            tanque: response.tanque,
+            orden_mezcla: response.orden_mezcla
+          });
+        } else {
+          console.log('ℹ️ No se encontró orden de mezcla para:', this.form.numero_orden);
+        }
+      } catch (error) {
+        console.error('❌ Error al buscar orden de mezcla:', error);
+        // No mostrar error al usuario, solo log
+      }
+    },
+
+    /**
+     * 🔧 Activa el modo de edición para el supervisor
+     */
+    activarModoEdicion() {
+      // Guardar valores originales para poder restaurar al cancelar
+      this.valoresOriginales = {
+        fecha_hora: this.form.fecha_hora,
+        lote: this.form.lote,
+        numeroTanque: this.form.numeroTanque
+      };
+      
+      this.modoEdicionSupervisor = true;
+      console.log('✏️ Modo edición activado para supervisor');
+    },
+
+    /**
+     * 💾 Guarda los cambios realizados por el supervisor
+     */
+    async guardarCambiosSupervisor() {
+      const confirmado = await StatusHandler.Confirm(
+        "¿Está seguro de guardar los cambios?",
+        "Esta acción guardará las modificaciones realizadas."
+      );
+
+      if (!confirmado) {
+        return;
+      }
+
+      const payload = {
+        ...this.getData(),
+      };
+
+      try {
+        StatusHandler.LShow();
+
+        const response = await saveValidacionTanque(payload);
+
+        if (response?.data) {
+          this.setForm(response.data);
+          this.estado = response.data.estado;
+        }
+
+        // Desactivar modo edición
+        this.modoEdicionSupervisor = false;
+        this.valoresOriginales = {};
+
+        StatusHandler.ShowStatus(
+          "Cambios guardados correctamente",
+          StatusHandler.OPERATION.UPDATE,
+          StatusHandler.STATUS.SUCCESS
+        );
+      } catch (err) {
+        StatusHandler.ShowStatus(
+          "Error al guardar los cambios",
+          StatusHandler.OPERATION.DEFAULT,
+          StatusHandler.STATUS.FAIL
+        );
+      }
+    },
+
+    /**
+     * ❌ Cancela la edición y restaura los valores originales
+     */
+    cancelarEdicion() {
+      // Restaurar valores originales
+      this.form.fecha_hora = this.valoresOriginales.fecha_hora;
+      this.form.lote = this.valoresOriginales.lote;
+      this.form.numeroTanque = this.valoresOriginales.numeroTanque;
+
+      // Desactivar modo edición
+      this.modoEdicionSupervisor = false;
+      this.valoresOriginales = {};
+
+      console.log('🔙 Edición cancelada, valores restaurados');
+    },
+
 
 
     // async guardarComoProduccion() {
@@ -346,6 +505,7 @@ export default {
         operaria: usuario.nombre,
         supervisor: '',
         control_calidad: '',
+        estado: 1, // ⬅️ Siempre establecer estado en 1 al guardar
       };
 
       try {

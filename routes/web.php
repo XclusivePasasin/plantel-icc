@@ -247,3 +247,5 @@ Route::prefix('tanque')->group(function () {
 Route::get('/validacion-tanque', [TanqueController::class, 'index'])->name('tanque.tanque');
 // Cambia a POST y recibe el parámetro en el body
 Route::post('/validacion-tanque/buscar', [TanqueController::class, 'buscarOrden']);
+Route::post('/validacion-tanque/buscar-mezcla', [TanqueController::class, 'buscarOrdenMezcla']);
+

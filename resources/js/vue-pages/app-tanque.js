@@ -38,7 +38,7 @@ const appValidacionTanque = new Vue({
                     control_calidad: orderData.orden.control_calidad || '',
                     lote: orderData.orden.lote || '',
                     numero_tanque: orderData.orden.numero_tanque || '',
-                    estado: orderData.orden.estado || 1,
+                    estado: orderData.orden.estado ?? 0, // ⬅️ Usar ?? 0 para respetar el estado 0
                     ...(orderData.validacion || {}), // si hay datos locales
                 };
 
@@ -52,7 +52,7 @@ const appValidacionTanque = new Vue({
                     validacionTanque: combinedData,
                     origen: orderData.origen
                 };
-                this.helpers.estado = combinedData.estado || 1;
+                this.helpers.estado = combinedData.estado ?? 0; // ⬅️ Usar ?? 0
                 this.panels.buscar = false;
                 this.panels.formulario = true;
 
