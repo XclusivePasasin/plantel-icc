@@ -111,6 +111,7 @@ Route::get('packing/tracking','DashboardController@packing')->name('packing.seg'
 Route::get('packing/find/{code}','EmpaqueController@searchDB')->name('packing.search.strict')->middleware('auth');
 #AJAX Autoriza una orden de empaque
 Route::post('packing/order/authorize/{id}','EmpaqueController@authorizeOrder')->name('packing.authorize')->middleware('auth');
+Route::post('packing/order/sign/{id}','EmpaqueController@signOrder')->name('packing.sign')->middleware('auth');
 # AJAX para modificar el seguimiento de los tiempos,operarios,entregas, observaciones
 Route::post('packing/tracking/{id}','EmpaqueController@tracking')->name('packing.tracking')->middleware('auth');
 # AJAX finaliza el proceso de empaque de una orden

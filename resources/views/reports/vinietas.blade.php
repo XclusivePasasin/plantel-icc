@@ -93,7 +93,7 @@
     </header>
 
 
-             @foreach ($data->materials()->get()->chunk(8) as $group)
+             @foreach ($data->mixMaterials()->get()->chunk(8) as $group)
              <div class="row">
                 <div class="row">
                     <div class="col-6">

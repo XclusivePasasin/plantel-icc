@@ -251,7 +251,7 @@
                             <th>DESCRIPCIÓN</th>
                             <th>PROCESO</th>
                             <th>CANTIDAD REQUERIDA</th>
-                            <th>INVENTARIO</th>
+                            <th style="display: none;">INVENTARIO</th>
                             <th>UNI</th>
                             <th>ALM</th>
                             <th>LOTE <i class="bi bi-info-circle" style="cursor: pointer;" data-bs-toggle="tooltip" data-bs-placement="right" title='Escribe el primer número de lote y luego una "/" para el duplicado de lotes'></i></th>
@@ -266,20 +266,20 @@
                             <td>{{e.description}}</td>
                             <td>{{e.process}}</td>
                             <td>{{e.required_amount}}</td>
-                            <td>{{e.stock}}</td>
+                            <td style="display: none;">{{e.stock}}</td>
                             <td>{{e.unit}}</td>
                             <td>{{e.almacen}}</td>
                             <td class="text-center">
-                                <input type="text" :disabled="!(edit_mode && (has_cap('cap-bodega') || has_cap('cap-supcalidad')) && data.status == 1)" v-model="e.lot1" @input="handleInputUppercase('lot1', index)"  @keydown="checkIfDuplicateLote($event,index)" style="width: 200px;" placeholder="Ingresar valor ..." class="form-control form-control-sm defblue1" />
+                                <input type="text" :disabled="!canEditMaterialsField" v-model="e.lot1" @input="handleInputUppercase('lot1', index)"  @keydown="checkIfDuplicateLote($event,index)" style="width: 200px;" placeholder="Ingresar valor ..." class="form-control form-control-sm defblue1" />
                             </td>
                             <td class="text-center">
-                                <input type="text" :disabled="!(edit_mode && (has_cap('cap-bodega') || has_cap('cap-supcalidad')) &&  data.status == 1)" v-model="e.entrega1"  style="width: 180px;" placeholder="Ingresar valor ..."  class="form-control form-control-sm defblue1"  @input="e.entrega1 = e.entrega1.replace(/[^0-9.]/g, '')" />
+                                <input type="text" :disabled="!canEditMaterialsField" v-model="e.entrega1"  style="width: 180px;" placeholder="Ingresar valor ..."  class="form-control form-control-sm defblue1"  @input="e.entrega1 = e.entrega1.replace(/[^0-9.]/g, '')" />
                             </td>
                             <td class="text-center">
-                                <input type="text" :disabled="!(edit_mode && (has_cap('cap-bodega') || has_cap('cap-supcalidad')) &&  data.status == 1)" v-model="e.entrega2"  style="width: 180px;" placeholder="Ingresar valor ..." class="form-control form-control-sm defblue1" @input="e.entrega2 = e.entrega2.replace(/[^0-9.]/g, '')" />
+                                <input type="text" :disabled="!canEditMaterialsField" v-model="e.entrega2"  style="width: 180px;" placeholder="Ingresar valor ..." class="form-control form-control-sm defblue1" @input="e.entrega2 = e.entrega2.replace(/[^0-9.]/g, '')" />
                             </td>
                             <td class="text-center">
-                                <input type="text" :disabled="!(edit_mode && (has_cap('cap-bodega') || has_cap('cap-supcalidad')) &&  data.status == 1)" v-model="e.return"  style="width: 180px;" placeholder="Ingresar valor ..." class="form-control form-control-sm defblue1" @input="e.return = e.return.replace(/[^0-9.]/g, '')" />
+                                <input type="text" :disabled="!canEditMaterialsField" v-model="e.return"  style="width: 180px;" placeholder="Ingresar valor ..." class="form-control form-control-sm defblue1" @input="e.return = e.return.replace(/[^0-9.]/g, '')" />
                             </td>
                         </tr>
                     </tbody>
@@ -287,7 +287,7 @@
             </div>
 
             <h6 class="px-3 fw-bold mt-6">OBSERVACIONES</h6>
-            <textarea  :disabled="data.status == 4 || data.status == 1 || !((has_cap('cap-produccion') || has_cap('cap-auxcontrol-calidad')) && edit_mode)" v-model="data.observations" placeholder="OBSERVACIONES: " class="form-control defblue1" rows="2"></textarea>
+            <textarea  :disabled="data.status == 4 || data.status == 1 || !((has_cap('cap-produccion') || has_cap('cap-auxcontrol-calidad') || has_cap('cap-bodega')) && edit_mode)" v-model="data.observations" placeholder="OBSERVACIONES: " class="form-control defblue1" rows="6"></textarea>
 
             <h6 class="px-3 fw-bold mt-6">PROCEDIMIENTO DE LLENADO Y EMPAQUE (Ver Hoja de verificación de envasado y empacado de sachet)</h6>
             <p class="px-3">Para Envases Flexibles: verificar que todos los insumos estén completos para el llenado del producto, mezclado y material de empaque, para el caso de sachet, el laminado aprobado previamente se ajusta en máquina y se procede al envasado, posteriormente se empaca en las cajas según contenido especificado.
@@ -318,16 +318,50 @@
             <div class="col-12 col-md-3">
                 <div class="row">
                     <div class="col-5">
-                        CANTIDAD
+                        CANTIDAD (C/U)
                     </div>
                     <div class="col-7">
-                        <input 
-                            type="text"
-                            :disabled="!canEditEntrega(index) || isFieldLocked(index, 'cantidad')"
-                            placeholder="..." 
-                            class="form-control form-control-sm defblue1"  
-                            v-model="eg.cantidad"
-                        />
+                        <div class="d-flex align-items-center">
+                            <input 
+                                type="number"
+                                :disabled="!canEditCantidad(index) || isFieldLocked(index, 'cantidad') || has_cap('cap-bodega')"
+                                placeholder="Cajas"
+                                class="form-control form-control-sm defblue1 me-1"
+                                :value="getPart(eg.cantidad, 0)"
+                                @input="updateCompositeField(index, 'cantidad', 0, $event.target.value)"
+                                style="width: 50%"
+                                />
+
+                                <input 
+                                type="number"
+                                :disabled="!canEditCantidad(index) || isFieldLocked(index, 'cantidad') || has_cap('cap-bodega')"
+                                placeholder="Unid"
+                                class="form-control form-control-sm defblue1 ms-1"
+                                :value="getPart(eg.cantidad, 1)"
+                                @input="updateCompositeField(index, 'cantidad', 1, $event.target.value)"
+                                style="width: 50%"
+                                />
+
+                            <!-- <input 
+                                type="number"
+                                :disabled="!canEditEntrega(index) || isFieldLocked(index, 'cantidad') || has_cap('cap-bodega')"
+                                placeholder="Cajas" 
+                                class="form-control form-control-sm defblue1 me-1"  
+                                :value="getPart(eg.cantidad, 0)"
+                                @input="updateCompositeField(index, 'cantidad', 0, $event.target.value)"
+                                style="width: 50%"
+                            />
+                            <span class="mx-1 fs-5">/</span>
+                            <input 
+                                type="number"
+                                :disabled="!canEditEntrega(index) || isFieldLocked(index, 'cantidad') || has_cap('cap-bodega')"
+                                placeholder="Unid" 
+                                class="form-control form-control-sm defblue1 ms-1"  
+                                :value="getPart(eg.cantidad, 1)"
+                                @input="updateCompositeField(index, 'cantidad', 1, $event.target.value)"
+                                style="width: 50%"
+                            /> -->
+                        </div>
                     </div>
                 </div>
             </div>
@@ -337,30 +371,57 @@
                         ENTREGADO
                     </div>
                     <div class="col-7">
-                        <input 
-                            :id="'entrega-entregado-'+index" 
+                        <input
+                            :id="'entrega-entregado-'+index"
                             type="text"
                             disabled
-                            placeholder="..." 
-                            class="form-control form-control-sm defblue1" 
+                            placeholder="..."
+                            class="form-control form-control-sm defblue1"
                             v-model="eg.entrega"
                         />
                     </div>
+
+                    <!-- <div class="col-7">
+                        <input 
+                            :id="'entrega-entregado-'+index" 
+                            type="text"
+                            :disabled="!canEditEntrega(index) || isFieldLocked(index, 'entrega') || has_cap('cap-bodega')"
+                            placeholder="..." 
+                            class="form-control form-control-sm defblue1" 
+                            v-model="eg.entrega"
+                            @input="lockFieldIfFilled(index, 'entrega')"
+                        />
+                    </div> -->
                 </div>
             </div>
             <div class="col-12 col-md-3">
                 <div class="row">
                     <div class="col-5">
-                        RECIBIDO
+                        RECIBIDO (C/U)
                     </div>
                     <div class="col-7">
-                        <input 
-                            type="text"
-                            :disabled="!canEditEntrega(index) || isFieldLocked(index, 'recibe')"
-                            placeholder="..." 
-                            class="form-control form-control-sm defblue1" 
-                            v-model="eg.recibe"
-                        />
+                        <div class="d-flex align-items-center">
+                            <input 
+                                type="number"
+                                :disabled="!canEditRecibido(index) || isFieldLocked(index, 'recibe') || has_cap('cap-bodega')"
+                                placeholder="Cajas"
+                                class="form-control form-control-sm defblue1 me-1"
+                                :value="getPart(eg.recibe, 0)"
+                                @input="updateCompositeField(index, 'recibe', 0, $event.target.value)"
+                                style="width: 50%"
+                            />
+
+                            <input 
+                                type="number"
+                                :disabled="!canEditRecibido(index) || isFieldLocked(index, 'recibe') || has_cap('cap-bodega')"
+                                placeholder="Unid"
+                                class="form-control form-control-sm defblue1 ms-1"
+                                :value="getPart(eg.recibe, 1)"
+                                @input="updateCompositeField(index, 'recibe', 1, $event.target.value)"
+                                style="width: 50%"
+                            />
+
+                        </div>
                     </div>
                 </div>
             </div>
@@ -393,6 +454,34 @@
             </div>
 
 
+            <div class="modal fade" id="confirmSignModal" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">{{ confirmModal.title }}</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                    </div>
+
+                    <div class="modal-body">
+                        <p class="mb-0">{{ confirmModal.message }}</p>
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal" :disabled="confirmModal.loading">
+                        Cancelar
+                        </button>
+
+                        <button type="button" class="btn btn-info" @click="confirmAndSign" :disabled="confirmModal.loading">
+                        <span v-if="confirmModal.loading" class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                        Confirmar
+                        </button>
+                    </div>
+                    </div>
+                </div>
+                </div>
+
+
+
             <div class="text-end mt-6">
                 <div class="col-auto">
                     <button type="button" v-if="data.order_id != 0" @click="generatedReport" class="btn btn-dark"><i class="bi bi-file-earmark-pdf"></i> Generar</button>
@@ -409,6 +498,7 @@
                         Modificar
                     </button>
 
+                    <!-- boton guardar -->
                     <button 
                         type="button" 
                         v-if="edit_mode && canShowSaveButton" 
@@ -461,6 +551,25 @@
                     </button>
 
 
+
+                    <button
+                        type="button"
+                        v-if="(has_cap('cap-produccion') || has_cap('cap-supcalidad')) && data.status >= 1 && data.status < 4 && !data.auditor.user_entrega"
+                        @click="openConfirmModal('entrega')"
+                        class="btn btn-info"
+                        >
+                        Entregar Materiales
+                    </button>
+
+                    <button
+                        type="button"
+                        v-if="(has_cap('cap-produccion') || has_cap('cap-supcalidad')) && data.status >= 1 && data.status < 4 && !data.auditor.user_recibe && data.auditor.user_entrega"
+                        @click="openConfirmModal('recibe')"
+                        class="btn btn-info"
+                        >
+                        Recibir Materiales
+                    </button>
+
                 </div>
             </div>
 
@@ -470,7 +579,7 @@
 </template>
 
 <script>
-    const {upsertOrderPacking,authorizePacking,updateTracking,finishPacking, obtenerLotePorOrden, verifyPackingLot, getPackingOrderDB, getUXCByOrder} = require("../service.js");
+    const {upsertOrderPacking,authorizePacking,updateTracking,finishPacking, obtenerLotePorOrden, verifyPackingLot, getPackingOrderDB, getUXCByOrder, signPackingOrder} = require("../service.js");
     const {formatPackingDB,getJSONTimes,getJSONOperarios,getJSONEntregas} = require("../helpers.js");
 
 
@@ -496,7 +605,15 @@ import moment from 'moment';
                 originalTimes: [],
                 originalOperarios: [],
                 originalEntregas: [],
-                verifying: false
+                lockedEntregas: [], // 🔒 Locks en memoria para bloqueo inmediato
+                verifying: false,
+                confirmModal: {
+                type: null,     // 'entrega' | 'recibe'
+                title: '',
+                message: '',
+                loading: false,
+                instance: null, // bootstrap modal instance
+                },
             }
         },
         mounted() {
@@ -504,13 +621,18 @@ import moment from 'moment';
         this.reloadOriginalTimes();
         this.reloadOriginalOperarios();
         this.reloadOriginalEntregas();
+        this.initializeLockedEntregas(); // 🔒 Inicializar locks en memoria
         this.checkIfEndDateFilled();
            this.$nextTick(() => {
                 this.initDatepickers(); // Espera a que Vue haya terminado de renderizar
             });
         // 🔹 Sincronizar fechas al inicio
         // this.syncEndDatesWithOperarios();
-           
+            // Inicializa el modal (Bootstrap 5)
+            const el = document.getElementById('confirmSignModal');
+            if (el && window.bootstrap) {
+                this.confirmModal.instance = new window.bootstrap.Modal(el, { backdrop: 'static', keyboard: false });
+            }
         },
         computed: {
             // canEdit() {
@@ -521,6 +643,11 @@ import moment from 'moment';
             //     return (isEditableStatus && hasMainCaps) || bodegaCondition;
             // }
             canEdit() {
+                // Estado <= 3: Bodega puede editar
+                if (this.data.status <= 3 && this.has_cap('cap-bodega')) {
+                    return true;
+                }
+                
                 // Estado 1: solo bodega
                 if (this.data.status === 1) {
                     return this.has_cap('cap-bodega');
@@ -537,8 +664,8 @@ import moment from 'moment';
                 return (this.data.status === 3 || this.data.status === 4) && hasMainCaps;
             },
             canShowSaveButton() {
-                // Estado 1: solo bodega
-                if (this.data.status === 1 && this.has_cap('cap-bodega')) {
+                // Estado <= 3: solo bodega
+                if (this.data.status <= 3 && this.has_cap('cap-bodega')) {
                     return true;
                 }
                 
@@ -550,6 +677,17 @@ import moment from 'moment';
                 // Otros casos para supcalidad y auxcontrol-calidad (manteniendo la lógica original)
                 return (this.data.status == 1 || this.data.status == 2) && 
                     (this.has_cap('cap-supcalidad') || this.has_cap('cap-auxcontrol-calidad'));
+            },
+            canEditMaterialsField() {
+                 // Solo permitir edición si el estado es menor a 4 (no finalizado)
+                 if (this.data.status >= 4) {
+                     return false;
+                 }
+                 
+                 return this.edit_mode && (
+                    (this.has_cap('cap-bodega') && this.data.status <= 3) ||
+                    (this.has_cap('cap-supcalidad') && this.data.status == 1)
+                 );
             }
         },
         created: function(){
@@ -569,40 +707,143 @@ import moment from 'moment';
             //             });
             //         }
             // },
+            canEditCantidad(index) {
+                if (!this.edit_mode) return false;
+
+                const status = parseInt(this.data.status);
+
+                // Producción en status 3: requiere inicio lleno
+                if (this.has_cap('cap-produccion') && status === 3) {
+                    if (!this.data.times || !this.data.times[index]) return false;
+                    const t = this.data.times[index];
+                    return !!(t.date_init && t.time_init);
+                }
+
+                // Si supcalidad puede editar (según tu lógica)
+                if (this.has_cap('cap-supcalidad') && status >= 1 && status < 4) {
+                    return true;
+                }
+
+                // Bodega la estás bloqueando con has_cap('cap-bodega') en el template,
+                // así que aquí no hace falta manejarlo.
+                return false;
+                },
+
+                canEditRecibido(index) {
+                if (!this.edit_mode) return false;
+
+                const status = parseInt(this.data.status);
+
+                // Producción en status 3: requiere inicio lleno (igual que cantidad)
+                if (this.has_cap('cap-produccion') && status === 3) {
+                    if (!this.data.times || !this.data.times[index]) return false;
+                    const t = this.data.times[index];
+                    return !!(t.date_init && t.time_init);
+                }
+
+                // Si supcalidad puede editar
+                if (this.has_cap('cap-supcalidad') && status >= 1 && status < 4) {
+                    return true;
+                }
+
+                return false;
+            },
+
+            getPart(value, partIndex) {
+                if (!value && value !== 0) return ''; // Permite valor 0
+                const parts = String(value).split('/');
+                return parts[partIndex] || '';
+            },
+            updateCompositeField(index, field, partIndex, newValue) {
+                let currentValue = this.data.entregas[index][field];
+                if (currentValue === null || currentValue === undefined) currentValue = '';
+                
+                let parts = String(currentValue).split('/');
+                
+                // Asegurar que hay al menos 2 partes
+                if (parts.length < 2) parts = [parts[0] || '', ''];
+                
+                // Actualizar la parte correspondiente
+                parts[partIndex] = newValue;
+                
+                // Unir de nuevo
+                this.data.entregas[index][field] = parts.join('/');
+                
+                // 🔒 NUEVO: Bloquear el campo si ahora tiene valor
+                // this.lockFieldIfFilled(index, field);
+                
+                this.$forceUpdate(); 
+            },
             canEditEntrega(index) {
-                // Verificar permisos y estado
-                if (!this.has_cap('cap-produccion') || this.data.status != 3 || !this.edit_mode) {
-                    return false;
+                if (!this.edit_mode) return false;
+
+                let status = parseInt(this.data.status);
+
+                // Permitir a Bodega en estados <= 3
+                if (this.has_cap('cap-bodega') && status <= 3) {
+                     return true; 
                 }
 
-                // Verificar que exista el time correspondiente
-                if (!this.data.times || !this.data.times[index]) {
-                    return false;
+                // Verificar permisos y estado para Producción
+                if (this.has_cap('cap-produccion') && status == 3) {
+                    // Verificar que exista el time correspondiente
+                    if (!this.data.times || !this.data.times[index]) {
+                        return false;
+                    }
+
+                    const time = this.data.times[index];
+
+                    // Verificar que fecha y hora de inicio estén llenas
+                    const hasInit = time.date_init && time.date_init !== null && 
+                                time.time_init && time.time_init !== null;
+
+                    // Solo habilitar si (inicio) están llenos
+                    return hasInit;
                 }
 
-                const time = this.data.times[index];
-
-                // Verificar que fecha y hora de inicio estén llenas
-                const hasInit = time.date_init && time.date_init !== null && 
-                            time.time_init && time.time_init !== null;
-
-                // Verificar que fecha y hora de fin estén llenas
-                const hasEnd = time.date_end && time.date_end !== null && 
-                            time.time_end && time.time_end !== null;
-
-                // Solo habilitar si AMBOS (inicio Y fin) están llenos
-                return hasInit && hasEnd;
+                return false;
             },
             isFieldLocked(index, fieldName) {
-                // Verificar si el campo YA tenía valor en los datos ORIGINALES (guardados)
+                // 🔒 NUEVO: Primero verificar locks en memoria (bloqueo inmediato)
+                if (this.lockedEntregas[index] && this.lockedEntregas[index][fieldName]) {
+                    return true;
+                }
+
+                // Verificar si existe el índice en los datos originales (bloqueo desde BD)
                 if (!this.originalEntregas || !this.originalEntregas[index]) {
                     return false;
                 }
 
                 const originalValue = this.originalEntregas[index][fieldName];
                 
-                // Bloquear solo si el campo original tenía un valor (no null, no vacío)
-                return originalValue !== null && originalValue !== undefined && originalValue !== '';
+                // Si es nulo o indefinido, asumimos que no está lleno
+                if (originalValue === null || originalValue === undefined) return false;
+
+                const strVal = String(originalValue).trim();
+                
+                // Si es string vacío, no está bloqueado
+                if (strVal === '') return false;
+
+                // Para campos compuestos (cantidad y recibe) que usan el formato "valor/valor"
+                // IMPORTANTE: cantidad y recibe son INDEPENDIENTES - cada uno se bloquea solo si tiene valor
+                if (fieldName === 'cantidad' || fieldName === 'recibe') {
+                    // Si contiene "/", es formato numérico "cajas/unidades"
+                    if (strVal.includes('/')) {
+                        const parts = strVal.split('/');
+                        const part0 = parts[0] ? parts[0].trim() : '';
+                        const part1 = parts[1] ? parts[1].trim() : '';
+                        
+                        // Solo bloquear este campo específico si tiene valor numérico
+                        // No afecta al otro campo (cantidad y recibe son independientes)
+                        return part0 !== '' || part1 !== '';
+                    }
+                    // Si NO contiene "/", podría ser texto (nombre de persona) - también bloquear
+                    // Esto maneja casos donde 'recibe' tiene nombres en lugar de números
+                    return strVal !== '';
+                }
+
+                // Para campos simples (entrega), simplemente verificar si tiene cualquier texto
+                return true;
             },
             // 1. MODIFICAR la inicialización de los datepickers para actualizar el modelo Vue
             initDatepickers() {
@@ -710,6 +951,54 @@ import moment from 'moment';
             addEntregas: function (){
                 this.data.entregas.push(getJSONEntregas());
             },
+            openConfirmModal(type) {
+                this.confirmModal.type = type;
+
+                const isEntrega = type === 'entrega';
+                this.confirmModal.title = isEntrega ? 'Confirmar entrega' : 'Confirmar recepción';
+                this.confirmModal.message = isEntrega
+                    ? '¿Deseas confirmar la entrega de materiales? Esta acción quedará registrada.'
+                    : '¿Deseas confirmar la recepción de materiales? Esta acción quedará registrada.';
+
+                this.confirmModal.loading = false;
+
+                if (this.confirmModal.instance) this.confirmModal.instance.show();
+            },
+            async confirmAndSign() {
+                if (!this.confirmModal.type) return;
+
+                try {
+                this.confirmModal.loading = true;
+
+                // Ejecuta tu lógica actual
+                await this.signOrder(this.confirmModal.type);
+
+                // Cierra modal si todo ok (tu signOrder ya muestra mensajes)
+                if (this.confirmModal.instance) this.confirmModal.instance.hide();
+                } finally {
+                this.confirmModal.loading = false;
+                this.confirmModal.type = null;
+                }
+            },
+            async signOrder(type) {
+                try {
+                const response = await signPackingOrder(this.data.order_id, type);
+
+                if (response.data.code === 1) {
+                    StatusHandler.ValidationMsg("Firmado correctamente");
+
+                    // Actualizar localmente para reflejar el cambio inmediato
+                    if (type === 'entrega') this.data.auditor.user_entrega = response.data.data.user_entrega;
+                    if (type === 'recibe') this.data.auditor.user_recibe = response.data.data.user_recibe;
+
+                    this.$forceUpdate();
+                } else {
+                    StatusHandler.ValidationMsg(response.data.msg);
+                }
+                } catch (e) {
+                StatusHandler.Exception("Error al firmar", e);
+                }
+            },
             removeEntregasItem: async function(index){
                 if(this.data.entregas.length == 1){
                     StatusHandler.ValidationMsg("Se requiere al menos un item de entregas");
@@ -791,6 +1080,12 @@ import moment from 'moment';
                     // Actualizamos el modelo local (usando tu helper)
                     this.data = formatPackingDB(response.data);
                     this.edit_mode = false;
+                    
+                    // 🔒 Reinicializar locks después de guardar
+                    this.reloadOriginalTimes();
+                    this.reloadOriginalOperarios();
+                    this.reloadOriginalEntregas();
+                    this.initializeLockedEntregas();
 
                     StatusHandler.LClose();
                     StatusHandler.ShowStatus("Guardado Existoso!", StatusHandler.OPERATION.CREATE, StatusHandler.STATUS.SUCCESS);
@@ -849,6 +1144,7 @@ import moment from 'moment';
                 this.reloadOriginalTimes();
                 this.reloadOriginalOperarios();
                 this.reloadOriginalEntregas();
+                this.initializeLockedEntregas(); // 🔒 Reinicializar locks
 
                 StatusHandler.LClose();
                 StatusHandler.ShowStatus(
@@ -888,6 +1184,12 @@ import moment from 'moment';
                     }
 
                     this.data = formatPackingDB(response.data);
+                    
+                    // 🔒 Reinicializar locks después de autorizar
+                    this.reloadOriginalTimes();
+                    this.reloadOriginalOperarios();
+                    this.reloadOriginalEntregas();
+                    this.initializeLockedEntregas();
 
                     // StatusHandler.LClose();
                     StatusHandler.ShowStatus("Aprobado con exito!",StatusHandler.OPERATION.CREATE,StatusHandler.STATUS.SUCCESS);
@@ -977,6 +1279,7 @@ import moment from 'moment';
                     this.reloadOriginalTimes();
                     this.reloadOriginalOperarios();
                     this.reloadOriginalEntregas();
+                    this.initializeLockedEntregas(); // 🔒 Reinicializar locks después de guardar
                     StatusHandler.LClose();
                     StatusHandler.ShowStatus("Modificado con exito!", StatusHandler.OPERATION.CREATE, StatusHandler.STATUS.SUCCESS);
                 }).catch(ex=>{
@@ -1199,6 +1502,96 @@ import moment from 'moment';
             },
             reloadOriginalEntregas(){
                 this.originalEntregas = this.data.entregas.map(entrega => ({ ...entrega }));
+            },
+            // 🔒 Inicializar locks en memoria basados en valores existentes
+            initializeLockedEntregas() {
+                this.lockedEntregas = this.data.entregas.map(entrega => {
+                    const locks = {
+                        cantidad: false,
+                        entrega: false,
+                        recibe: false
+                    };
+                    
+                    // Bloquear 'cantidad' si ya tiene valor
+                    if (entrega.cantidad) {
+                        const strVal = String(entrega.cantidad).trim();
+                        if (strVal !== '' && strVal !== '/') {
+                            const parts = strVal.split('/');
+                            const part0 = parts[0] ? parts[0].trim() : '';
+                            const part1 = parts[1] ? parts[1].trim() : '';
+                            if (part0 !== '' || part1 !== '') {
+                                locks.cantidad = true;
+                            }
+                        }
+                    }
+                    
+                    // Bloquear 'entrega' si ya tiene valor
+                    if (entrega.entrega && String(entrega.entrega).trim() !== '') {
+                        locks.entrega = true;
+                    }
+                    
+                    // Bloquear 'recibe' si ya tiene valor
+                    if (entrega.recibe) {
+                        const strVal = String(entrega.recibe).trim();
+                        if (strVal !== '' && strVal !== '/') {
+                            // Puede ser texto o formato numérico
+                            if (strVal.includes('/')) {
+                                const parts = strVal.split('/');
+                                const part0 = parts[0] ? parts[0].trim() : '';
+                                const part1 = parts[1] ? parts[1].trim() : '';
+                                if (part0 !== '' || part1 !== '') {
+                                    locks.recibe = true;
+                                }
+                            } else if (strVal !== '') {
+                                locks.recibe = true;
+                            }
+                        }
+                    }
+                    
+                    return locks;
+                });
+            },
+            // 🔒 Bloquear campo si tiene valor (llamar después de cada input)
+            lockFieldIfFilled(index, fieldName) {
+                // Asegurar que existe el objeto de locks para este índice
+                if (!this.lockedEntregas[index]) {
+                    this.$set(this.lockedEntregas, index, {
+                        cantidad: false,
+                        entrega: false,
+                        recibe: false
+                    });
+                }
+                
+                const currentValue = this.data.entregas[index][fieldName];
+                
+                if (!currentValue) {
+                    return; // No bloquear si está vacío
+                }
+                
+                const strVal = String(currentValue).trim();
+                
+                // Para campos compuestos (cantidad, recibe)
+                if (fieldName === 'cantidad' || fieldName === 'recibe') {
+                    if (strVal !== '' && strVal !== '/') {
+                        if (strVal.includes('/')) {
+                            const parts = strVal.split('/');
+                            const part0 = parts[0] ? parts[0].trim() : '';
+                            const part1 = parts[1] ? parts[1].trim() : '';
+                            // Bloquear si cualquiera de las partes tiene valor
+                            if (part0 !== '' || part1 !== '') {
+                                this.$set(this.lockedEntregas[index], fieldName, true);
+                            }
+                        } else if (strVal !== '') {
+                            // Texto sin "/" (para compatibilidad con datos antiguos)
+                            this.$set(this.lockedEntregas[index], fieldName, true);
+                        }
+                    }
+                } else {
+                    // Para campos simples (entrega)
+                    if (strVal !== '') {
+                        this.$set(this.lockedEntregas[index], fieldName, true);
+                    }
+                }
             },
             // 3. MODIFICAR checkIfEndDateFilled para manejar correctamente los datos
            checkIfEndDateFilled() {

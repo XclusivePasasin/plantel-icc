@@ -436,7 +436,7 @@
                 <th style="width: 8%;">PROCESO</th>
                 <th style="width: 8%;">CANTIDAD REQUERIDA</th>
                 <th style="width: 10%;">UNI</th>
-                <th style="width: 8%;">ALM</th>
+                <th style="width: 8%;">ALMACEN</th>
                 <th style="width: 9%;">LOTE</th>
                 <th style="width: 1%;"></th>
                 <th style="width: 9%;">PRIMER ENTREGA</th>
@@ -450,7 +450,7 @@
 
     <table class="dw100">
         <tbody>
-            @foreach ($data->materials()->get() as $e)
+            @foreach ($data->empaqueMaterials()->get() as $e)
                 <tr class="fsm3">
                     <td style="width: 8%;">{{ $e->code }}</td>
                     <td style="width: 18%;">{{ $e->description }}</td>

@@ -175,9 +175,16 @@ class MixController extends Controller
 
         // 🔎 Normalizar código para BD
         $normalizedDBCode = $this->normalizeOrderCode($order_code);
+        \Log::info("searchDB: Buscando orden en BD con código normalizado: " . $normalizedDBCode);
 
         // Buscar en BD
         $order = MixOrder::whereRaw("REPLACE(num_id, ' ', '') = ?", [$normalizedDBCode])->first();
+
+        if ($order) {
+            \Log::info("searchDB: Orden encontrada en BD local. ID: " . $order->id);
+        } else {
+            \Log::info("searchDB: Orden NO encontrada en BD local.");
+        }
 
         // 🚀 Si no está en BD y es JefeProducción, ir a API
         if(!$order && Auth::user()->hasRole("JefeProduccion")){
@@ -240,7 +247,7 @@ class MixController extends Controller
             }
         }
 
-        $order->load('materials');
+        $order->load('mixMaterials');
 
         $salida["code"] = 1;
         $salida["msg"]  = "Processed Successfully";
@@ -432,7 +439,7 @@ class MixController extends Controller
 
 
         $order->refresh();
-        $order->load('materials');
+        $order->load('mixMaterials');
 
         $salida["code"] = 1;
         $salida["msg"] = "Processed Successfully";
@@ -585,7 +592,7 @@ class MixController extends Controller
         }
 
         $order->refresh();
-        $order->load('materials');
+        $order->load('mixMaterials');
 
         $salida["code"] = 1;
         $salida["msg"] = "Processed Successfully";
@@ -643,14 +650,21 @@ class MixController extends Controller
             return $salida;
         }
 
-        \Log::info("Iniciando búsqueda de orden: " . $order_code);
+        \Log::info("Iniciando búsqueda de orden (search): " . $order_code);
 
         // Normalizar el código ingresado
         $normalizedOrderCode = preg_replace('/\s+/', '', $order_code);
+        \Log::info("Código normalizado: " . $normalizedOrderCode);
 
         // Inicializar búsqueda en la base de datos local
         $salida["data"] = ["origin" => "DB", "order" => null];
         $order = MixOrder::whereRaw("REPLACE(num_id, ' ', '') = ?", [$normalizedOrderCode])->first();
+
+        if ($order) {
+             \Log::info("Orden encontrada en BD local ID: " . $order->id);
+        } else {
+             \Log::info("Orden NO encontrada en BD local.");
+        }
 
         // Si no se encuentra en la BD, consultar la API
         if (!$order) {
@@ -790,7 +804,7 @@ class MixController extends Controller
 
         } else {
             // Si se encuentra en la base de datos, cargar materiales relacionados
-            $order->load('materials');
+            $order->load('mixMaterials');
             \Log::info("Orden encontrada en la base de datos: " . json_encode($order, JSON_UNESCAPED_UNICODE));
         }
 
@@ -888,7 +902,7 @@ class MixController extends Controller
                 $salida["data"] = $rows;
 
             } catch (\Exception $e) {
-                \Log::error("Error en getObservacionesPorLineas: ".$e->getMessage());
+                \Log::error("Error en getObservacionesPo    rLineas: ".$e->getMessage());
                 $salida["msg"] = "Error: " . $e->getMessage();
             }
 
@@ -1135,7 +1149,7 @@ class MixController extends Controller
 
             $salida["code"] = 1;
             $salida["msg"]  = "Processed Successfully";
-            $salida["data"] = $order->load('materials');
+            $salida["data"] = $order->load('mixMaterials');
         } catch(\Exception $ex) {
             DB::rollback();
             $salida['msg'] = "Error: " . $ex->getMessage()." en linea ".$ex->getLine();
@@ -1156,7 +1170,7 @@ class MixController extends Controller
 
         DB::beginTransaction();
         try {
-            $order = MixOrder::with('materials')->findOrFail($id);
+            $order = MixOrder::with('mixMaterials')->findOrFail($id);
             
             // ✅ Actualizar estado de la orden
             $order->status_receive_materials = 1;
@@ -1171,7 +1185,7 @@ class MixController extends Controller
             $salida["msg"]  = "Orden actualizada correctamente";
             $salida["data"] = [
                 'order'     => $order,
-                'materials' => $order->materials()->get()
+                'materials' => $order->mixMaterials()->get()
             ];
 
         } catch (\Exception $ex) {
@@ -1304,7 +1318,7 @@ class MixController extends Controller
         }
 
         $order->refresh();
-        $order->load('materials');
+        $order->load('mixMaterials');
 
         $salida["code"] = 1;
         $salida["msg"]  = "Processed Successfully";
@@ -1404,7 +1418,7 @@ class MixController extends Controller
             \Log::info("📦 Materiales procesados: " . count($materials));
 
             $order->refresh();
-            $order->load('materials');
+            $order->load('mixMaterials');
 
             DB::commit();
 

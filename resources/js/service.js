@@ -935,3 +935,19 @@ export function updateUserEntregaMp(orderId) {
             });
     });
 }
+
+/**
+ * Firma orden de empaque (entrega o recibe)
+ * @param {Number} id
+ * @param {String} type 'entrega' | 'recibe'
+ * @returns {Promise}
+ */
+export function signPackingOrder(id, type) {
+    return new Promise((resolve, reject) => {
+        axios.post(`/packing/order/sign/${id}`, { type: type }).then(response => {
+            resolve(response);
+        }).catch(e => {
+            reject(e);
+        })
+    })
+}

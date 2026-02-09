@@ -28,7 +28,7 @@ class ReportController extends Controller
             return "Orden no encontrada";
         }
 
-        $order->load('materials');
+        $order->load('mixMaterials');
 
         // Aplica formato a observaciones
         $order->observaciones = $this->formatObservations($order->observaciones);
@@ -166,7 +166,7 @@ class ReportController extends Controller
             return "Orden no encontrada";
         }
 
-        $order->load('materials');
+        $order->load('mixMaterials');
         $data = ['data' => $order];
         // echo json_encode($data);
         $pdf = PDF::loadView('reports.vinietas', $data);
