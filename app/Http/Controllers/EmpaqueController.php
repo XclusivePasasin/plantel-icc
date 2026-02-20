@@ -859,9 +859,9 @@ class EmpaqueController extends Controller
                 !empty($t['time_init']);
         });
 
-        if ($validStart && !$order->user_recibe) {
-            $order->user_recibe = session('user_cur_fullname');
-        }
+        // if ($validStart && !$order->user_recibe) {
+        //     $order->user_recibe = session('user_cur_fullname');
+        // }
 
         // Asignar valores fusionados
         $order->times = json_encode($existingTimes);
