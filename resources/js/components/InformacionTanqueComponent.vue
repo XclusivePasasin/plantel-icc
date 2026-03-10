@@ -1,139 +1,261 @@
 <template>
   <div class="min-h-[80vh] flex items-center justify-center">
     <div class="bg-white border rounded-xl shadow-md p-6 w-full max-w-4xl">
-      <h2 class="text-center font-bold text-lg mb-6">
-        Validación de conexión a tanque {{ form.numero_orden || 'N/A' }}
-      </h2>
+      <h4 class="text-xl font-bold text-indigo-700 flex items-center gap-2 mb-6">
+        <i class="bi bi-shield-check"></i> Monitoreo de Tanque {{ form.numero_orden || 'N/A' }}
+      </h4>
 
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-  <div>
-    <label class="text-sm font-medium">Fecha y hora</label>
-    <input
-      v-model="form.fecha_hora"
-      type="datetime-local"
-      class="form-control"
-      :readonly="!isEditableProduccion && !modoEdicionSupervisor"
-    />
+      <!-- SECCIÓN 1: CONEXIÓN INICIAL (Siempre visible) -->
+      <div class="mb-8">
+        <h3 class="font-bold text-md mb-4 text-gray-600 uppercase tracking-wider border-b pb-2">
+          Conexión Inicial
+        </h3>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          <div>
+            <label class="text-sm font-medium text-gray-500 text-uppercase">Fecha y hora</label>
+            <input
+              v-model="form.fecha_hora"
+              type="datetime-local"
+              class="form-control"
+              :readonly="!isEditableProduccion && !modoEdicionSupervisor"
+            />
+          </div>
+
+          <div>
+            <label class="text-sm font-medium text-gray-500 text-uppercase">Operaria de máquina</label>
+            <input
+              v-model="form.operaria"
+              type="text"
+              class="form-control"
+              placeholder="Operaria"
+              readonly
+            />
+          </div>
+
+          <div>
+            <label class="text-sm font-medium text-gray-500 text-uppercase">Supervisor</label>
+            <input
+              v-model="form.supervisor"
+              type="text"
+              class="form-control"
+              placeholder="Producción"
+              readonly
+            />
+          </div>
+
+          <div>
+            <label class="text-sm font-medium text-gray-500 text-uppercase">Control de calidad</label>
+            <input
+              v-model="form.controlCalidad"
+              type="text"
+              class="form-control"
+              placeholder="Calidad"
+              readonly
+            />
+          </div>
+
+          <div>
+            <label class="text-sm font-medium text-gray-500 text-uppercase">LOTE</label>
+            <input
+              v-model="form.lote"
+              type="text"
+              class="form-control"
+              :readonly="!isEditableProduccion && !modoEdicionSupervisor"
+            />
+          </div>
+
+          <div>
+            <label class="text-sm font-medium text-gray-500 text-uppercase">N° Tanque</label>
+            <input
+              v-model="form.numeroTanque"
+              type="text"
+              class="form-control"
+              placeholder="Número de tanque"
+              :readonly="!isEditableProduccion && !modoEdicionSupervisor"
+            />
+          </div>
+        </div>
+
+        <div class="mt-4 w-full flex justify-end space-x-3">
+          <!-- Botón Guardar para Producción -->
+          <button
+            v-if="has_cap('cap-produccion') && estado === 0 && !modoEdicionSupervisor"
+            @click="guardarComoProduccion"
+            class="btn btn-primary px-4"
+          >
+            <i class="bi bi-save"></i> Guardar
+          </button>
+
+          <!-- Botón Modificar para Auxiliar de Calidad -->
+          <button
+            v-if="has_cap('cap-auxcontrol-calidad') && estado === 1 && !modoEdicionSupervisor"
+            @click="activarModoEdicion"
+            class="btn btn-warning px-4"
+          >
+            <i class="bi bi-pencil-square"></i> Modificar
+          </button>
+
+          <!-- Botones Guardar Cambios y Cancelar -->
+          <button
+            v-if="has_cap('cap-auxcontrol-calidad') && estado === 1 && modoEdicionSupervisor"
+            @click="cancelarEdicion"
+            class="btn btn-secondary px-4"
+          >
+            <i class="bi bi-x-circle"></i> Cancelar
+          </button>
+
+          <button
+            v-if="has_cap('cap-auxcontrol-calidad') && estado === 1 && modoEdicionSupervisor"
+            @click="guardarCambiosSupervisor"
+            class="btn btn-primary px-4"
+          >
+            <i class="bi bi-save"></i> Guardar Cambios
+          </button>
+
+          <!-- Botón Verificar -->
+          <button
+            v-if="(has_cap('cap-jefecontrol-calidad') || has_cap('cap-supproduccion')) && estado === 1 && !modoEdicionSupervisor"
+            @click="verificarOrden"
+            class="btn btn-success px-4"
+          >
+            <i class="bi bi-check2-circle"></i> Verificar
+          </button>
+
+          <!-- Botón Autorizar -->
+          <button
+            v-if="(has_cap('cap-auxcontrol-calidad') || has_cap('cap-jefecontrol-calidad')) && (estado === 1 || estado === 2)"
+            @click="autorizarOrden"
+            class="btn btn-success px-4"
+            :disabled="estado !== 2"
+            :title="estado !== 2 ? 'Debe ser verificado por Control de Calidad primero' : 'Autorizar orden'"
+          >
+            <i class="bi bi-shield-check"></i> Autorizar
+          </button>
+
+          <!-- Botón de Reconexión -->
+          <button v-if="has_cap('cap-produccion') && reconexion_estado == 0 && estado > 0" class="btn btn-warning px-4" @click="activarReconexion">
+            <i class="bi bi-arrow-repeat"></i> Nueva Reconexión
+          </button>
+        </div>
+      </div>
+
+<!-- SECCIÓN DE RECONEXIÓN -->
+<div v-if="reconexion_estado > 0" class="mt-8 pt-6 border-t">
+  <h3 class="text-center font-bold text-md mb-4 text-blue-700">
+    <i class="bi bi-arrow-clockwise"></i> Reconexión a tanque
+  </h3>
+  
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+    <div>
+      <label class="text-sm font-medium">Fecha y hora (Reconexión)</label>
+      <input
+        v-model="form.reconexion_fecha_hora"
+        type="datetime-local"
+        class="form-control"
+        :readonly="!isEditableReconexion"
+      />
+    </div>
+
+    <div>
+      <label class="text-sm font-medium">Operaria (Reconexión)</label>
+      <input v-model="form.reconexion_operaria" type="text" class="form-control" readonly />
+    </div>
+
+    <div>
+      <label class="text-sm font-medium">Supervisor (Reconexión)</label>
+      <input v-model="form.reconexion_supervisor" type="text" class="form-control" readonly />
+    </div>
+
+    <div>
+      <label class="text-sm font-medium">Control de calidad (Reconexión)</label>
+      <input v-model="form.reconexion_control_calidad" type="text" class="form-control" readonly />
+    </div>
+
+    <div>
+      <label class="text-sm font-medium">LOTE (Reconexión)</label>
+      <input
+        v-model="form.reconexion_lote"
+        type="text"
+        class="form-control"
+        :readonly="!isEditableReconexion"
+      />
+    </div>
+
+    <div>
+      <label class="text-sm font-medium">N° Tanque (Reconexión)</label>
+      <input
+        v-model="form.reconexion_numero_tanque"
+        type="text"
+        class="form-control"
+        :readonly="!isEditableReconexion"
+      />
+    </div>
   </div>
 
-  <div>
-    <label class="text-sm font-medium">Operaria de máquina</label>
-    <input
-      v-model="form.operaria"
-      type="text"
-      class="form-control"
-      placeholder="Operaria"
-      readonly
-    />
+  <div class="mt-6 w-full flex justify-end space-x-3">
+    <!-- Botón Guardar para Producción (Reconexión) -->
+    <button
+      v-if="has_cap('cap-produccion') && reconexion_estado === 1"
+      @click="guardarReconexion"
+      class="btn btn-primary px-4"
+    >
+      <i class="bi bi-save"></i> Guardar Reconexión
+    </button>
+
+    <!-- Botón Modificar para Auxiliar de Calidad (Reconexión) -->
+    <button
+      v-if="has_cap('cap-auxcontrol-calidad') && reconexion_estado === 1 && !modoEdicionReconexion"
+      @click="activarEdicionReconexion"
+      class="btn btn-warning px-4"
+    >
+      <i class="bi bi-pencil-square"></i> Modificar Reconexión
+    </button>
+
+    <!-- Botones Guardar Cambios y Cancelar (Reconexión) -->
+    <button
+      v-if="has_cap('cap-auxcontrol-calidad') && reconexion_estado === 1 && modoEdicionReconexion"
+      @click="cancelarEdicionReconexion"
+      class="btn btn-secondary px-4"
+    >
+      <i class="bi bi-x-circle"></i> Cancelar
+    </button>
+
+    <button
+      v-if="has_cap('cap-auxcontrol-calidad') && reconexion_estado === 1 && modoEdicionReconexion"
+      @click="guardarCambiosReconexion"
+      class="btn btn-primary px-4"
+    >
+      <i class="bi bi-save"></i> Guardar Cambios Reconexión
+    </button>
+
+    <!-- Botón Verificar para Supervisor de Producción o Jefe de Control de Calidad (Reconexión) -->
+    <button
+      v-if="(has_cap('cap-supproduccion')) && reconexion_estado === 1 && !modoEdicionReconexion"
+      @click="verificarReconexion"
+      class="btn btn-success px-4"
+    >
+      <i class="bi bi-check2-circle"></i> Verificar Reconexión
+    </button>
+
+    <!-- Botón Autorizar para Auxiliar y Jefe de Control de Calidad (Reconexión) -->
+    <button
+      v-if="(has_cap('cap-auxcontrol-calidad') || has_cap('cap-jefecontrol-calidad')) && reconexion_estado === 2"
+      @click="autorizarReconexion"
+      class="btn btn-success px-4"
+    >
+      <i class="bi bi-shield-check"></i> Autorizar Reconexión
+    </button>
+
+    <!-- ✅ Indicador de Finalización -->
+    <button
+      v-if="reconexion_estado === 3"
+      class="btn btn-secondary px-4"
+      disabled
+    >
+      <i class="bi bi-check-all"></i> Finalizada orden de reconexión
+    </button>
   </div>
-
-  <div>
-    <label class="text-sm font-medium">Supervisor</label>
-    <input
-      v-model="form.supervisor"
-      type="text"
-      class="form-control"
-      placeholder="Producción"
-      readonly
-    />
-  </div>
-
-  <div>
-    <label class="text-sm font-medium">Control de calidad</label>
-    <input
-      v-model="form.controlCalidad"
-      type="text"
-      class="form-control"
-      placeholder="Calidad"
-      readonly
-    />
-  </div>
-
-  <div>
-    <label class="text-sm font-medium">LOTE</label>
-    <input
-      v-model="form.lote"
-      type="text"
-      class="form-control"
-      :readonly="!isEditableProduccion && !modoEdicionSupervisor"
-    />
-  </div>
-
-  <div>
-    <label class="text-sm font-medium">N° Tanque</label>
-    <input
-      v-model="form.numeroTanque"
-      type="text"
-      class="form-control"
-      placeholder="Número de tanque"
-      :readonly="!isEditableProduccion && !modoEdicionSupervisor"
-    />
-  </div>
-</div>
-
-
-<div class="mt-6 w-full flex justify-end space-x-3">
-  <!-- Botón Guardar para Producción -->
-  <button
-    v-if="has_cap('cap-produccion') && estado === 0 && !modoEdicionSupervisor"
-    @click="guardarComoProduccion"
-    class="btn btn-primary px-4"
-  >
-    <i class="bi bi-save"></i> Guardar
-  </button>
-
-  <!-- Botón Modificar para Supervisor (solo si no está en modo edición) -->
-  <button
-    v-if="has_cap('cap-supprod') && estado === 1 && !modoEdicionSupervisor"
-    @click="activarModoEdicion"
-    class="btn btn-warning px-4"
-  >
-    <i class="bi bi-pencil-square"></i> Modificar
-  </button>
-
-  <!-- Botones Guardar Cambios y Cancelar (solo en modo edición) -->
-  <button
-    v-if="has_cap('cap-supprod') && estado === 1 && modoEdicionSupervisor"
-    @click="cancelarEdicion"
-    class="btn btn-secondary px-4"
-  >
-    <i class="bi bi-x-circle"></i> Cancelar
-  </button>
-
-  <button
-    v-if="has_cap('cap-supprod') && estado === 1 && modoEdicionSupervisor"
-    @click="guardarCambiosSupervisor"
-    class="btn btn-primary px-4"
-  >
-    <i class="bi bi-save"></i> Guardar Cambios
-  </button>
-
-  <!-- Botón Verificar (solo si no está en modo edición) -->
-  <button
-    v-if="has_cap('cap-supprod') && estado === 1 && !modoEdicionSupervisor"
-    @click="verificarOrden"
-    class="btn btn-success px-4"
-  >
-    <i class="bi bi-check2-circle"></i> Verificar
-  </button>
-
-  <!-- Botón Autorizar para Control de Calidad -->
-  <!-- Botón Autorizar para Control de Calidad -->
-  <!-- Visible si tiene permisos y el estado es >= 1. Bloqueado si no es 2 (Verificado) -->
-  <button
-    v-if="(has_cap('cap-auxcontrol-calidad') || has_cap('cap-jefecontrol-calidad')) && (estado === 1 || estado === 2)"
-    @click="autorizarOrden"
-    class="btn btn-success px-4"
-    :disabled="estado !== 2"
-    :title="estado !== 2 ? 'Debe ser verificado por un supervisor primero' : 'Autorizar orden'"
-  >
-    <i class="bi bi-shield-check"></i> Autorizar
-  </button>
-
-  <!-- Estado Finalizado -->
-  <button v-if="estado === 3" disabled class="btn btn-secondary px-4">
-    Información finalizada
-  </button>
 </div>
 
 
@@ -145,7 +267,10 @@
 const {
    saveValidacionTanque,
    verificarValidacionTanque,
-   autorizarValidacionTanque
+   autorizarValidacionTanque,
+   verificarReconexionTanque,
+   autorizarReconexionTanque,
+   buscarOrdenMezcla
 } = require("../service.js");
 export default {
   name: "ValidacionTanque",
@@ -197,16 +322,40 @@ export default {
         tamano_lote: v.tamano_lote || '',
         presentacion: v.presentacion || '',
         materiales: v.materiales || [],
+        // Reconexión
+        reconexion_fecha_hora: v.reconexion_fecha_hora 
+          ? new Date(v.reconexion_fecha_hora).toISOString().slice(0, 16)
+          : '',
+        reconexion_operaria: v.reconexion_operaria || '',
+        reconexion_supervisor: v.reconexion_supervisor || '',
+        reconexion_control_calidad: v.reconexion_control_calidad || '',
+        reconexion_lote: v.reconexion_lote || '',
+        reconexion_numero_tanque: v.reconexion_numero_tanque || '',
       },
       estado: v.estado || 0,
-      modoEdicionSupervisor: false, // 🔧 Controla si el supervisor está editando
+      reconexion_estado: v.reconexion_estado || 0,
+      modoEdicionSupervisor: false, // 🔧 Controla si Carolina/Auxiliar está editando
+      modoEdicionReconexion: false, // 🔧 Controla si Carolina/Auxiliar está editando reconexión
       valoresOriginales: {}, // 🔧 Guarda los valores originales para restaurar al cancelar
+      valoresOriginalesReconexion: {}, // 🔧 Guarda valores para reconexión
     };
   },
   computed: {
     isEditableProduccion() {
       // Solo editable en estado 0 (sin guardar). Una vez guardado (estado 1), se bloquea
       return this.has_cap('cap-produccion') && this.estado === 0;
+    },
+    /**
+     * 🛡️ Controla si los campos de RECONEXIÓN son editables
+     */
+    isEditableReconexion() {
+      // 1. Si está en modo edición explícito (por el botón Modificar de Calidad)
+      if (this.modoEdicionReconexion) return true;
+      
+      // 2. Si es Producción y apenas está iniciando la reconexión (estado 1)
+      if (this.has_cap('cap-produccion') && this.reconexion_estado === 1) return true;
+
+      return false;
     }
   },
   watch: {
@@ -222,6 +371,12 @@ export default {
     getCurrentUser() {
       if (typeof window.getCurrentUser === "function") {
           return window.getCurrentUser();
+      }
+      if (window.AppVars && window.AppVars.current_user) {
+        return {
+          nombre: window.AppVars.current_user.user_fullname || "Usuario",
+          rol: "usuario"
+        };
       }
       return { nombre: "Usuario desconocido", rol: "invitado" };
     },
@@ -255,6 +410,12 @@ export default {
         numero_tanque: this.form.numeroTanque, // ✅ mapeado correctamente
         codigo_empaque: this.form.codigo_empaque || null,
         estado: this.estado,
+        // Reconexión
+        reconexion_fecha_hora: this.form.reconexion_fecha_hora,
+        reconexion_lote: this.form.reconexion_lote,
+        reconexion_numero_tanque: this.form.reconexion_numero_tanque,
+        reconexion_operaria: this.form.reconexion_operaria,
+        reconexion_estado: this.reconexion_estado,
       };
     },
     emitirCambioEstado(nuevoEstado) {
@@ -299,8 +460,15 @@ export default {
           tamano_lote: '',
           presentacion: '',
           materiales: [],
+          reconexion_fecha_hora: '',
+          reconexion_operaria: '',
+          reconexion_supervisor: '',
+          reconexion_control_calidad: '',
+          reconexion_lote: '',
+          reconexion_numero_tanque: '',
         });
         this.estado = 0;
+        this.reconexion_estado = 0;
         return;
       }
 
@@ -321,7 +489,20 @@ export default {
       this.form.presentacion = data.presentacion || '';
       this.form.materiales = data.materiales || [];
       
+      // Reconexión
+      this.form.reconexion_fecha_hora = data.reconexion_fecha_hora 
+        ? new Date(data.reconexion_fecha_hora).toISOString().slice(0, 16)
+        : '';
+      this.form.reconexion_operaria = data.reconexion_operaria || '';
+      this.form.reconexion_supervisor = data.reconexion_supervisor || '';
+      this.form.reconexion_control_calidad = data.reconexion_control_calidad || '';
+      this.form.reconexion_lote = data.reconexion_lote || '';
+      this.form.reconexion_numero_tanque = data.reconexion_numero_tanque || '';
+
       this.estado = data.estado || 0;
+      this.reconexion_estado = (data.reconexion_estado != undefined) ? Number(data.reconexion_estado) : 0;
+      
+      console.log('📦 Reconexión Estado Detectado:', this.reconexion_estado);
 
       // 🔍 Buscar orden de mezcla si lote y tanque están vacíos
       this.$nextTick(() => {
@@ -600,7 +781,7 @@ export default {
       //   }
       // },
 
-     async autorizarOrden() {
+      async autorizarOrden() {
         // ✅ PRIMERO: Pedir confirmación
         const confirmado = await StatusHandler.Confirm(
           "¿Está seguro de autorizar esta orden?",
@@ -637,42 +818,150 @@ export default {
         } finally {
           // StatusHandler.LClose(); // ✅ Siempre cerrar
         }
+      },
+
+      /**
+       * 🔄 Activa la sección de reconexión
+       */
+      async activarReconexion() {
+        this.reconexion_estado = 1;
+        this.form.reconexion_fecha_hora = this.getFechaHoraActualElSalvador();
+        this.form.reconexion_operaria = this.getCurrentUser().nombre;
+
+        try {
+          console.log('🔍 Extrayendo datos originales para reconexión...');
+          const response = await buscarOrdenMezcla(this.form.numero_orden);
+
+          if (response.existe) {
+            this.form.reconexion_lote = response.lote || this.form.lote;
+            this.form.reconexion_numero_tanque = response.tanque || this.form.numeroTanque;
+          } else {
+            this.form.reconexion_lote = this.form.lote;
+            this.form.reconexion_numero_tanque = this.form.numeroTanque;
+          }
+        } catch (error) {
+          console.error('❌ Error al extraer datos para reconexión:', error);
+          this.form.reconexion_lote = this.form.lote;
+          this.form.reconexion_numero_tanque = this.form.numeroTanque;
+        }
+
+        console.log('🔄 Reconexión activada');
+      },
+
+      /**
+       * 💾 Guarda los datos de reconexión
+       */
+      async guardarReconexion() {
+        const confirmado = await StatusHandler.Confirm(
+          "¿Está seguro de guardar la reconexión?",
+          "Esta acción registrará los datos de reconexión."
+        );
+
+        if (!confirmado) return;
+
+        try {
+          StatusHandler.LShow();
+          const response = await saveValidacionTanque(this.getData());
+          if (response?.data) {
+            this.setForm(response.data);
+          }
+          StatusHandler.ShowStatus(
+            "Reconexión guardada correctamente.",
+            StatusHandler.OPERATION.CREATE,
+            StatusHandler.STATUS.SUCCESS
+          );
+        } catch (err) {
+          StatusHandler.ShowStatus("Error al guardar reconexión", StatusHandler.OPERATION.DEFAULT, StatusHandler.STATUS.FAIL);
+        }
+      },
+
+      /**
+       * ✅ Verifica la reconexión
+       */
+      async verificarReconexion() {
+        const confirmado = await StatusHandler.Confirm(
+          "¿Está seguro de verificar la reconexión?",
+          "Esta acción validará la reconexión."
+        );
+
+        if (!confirmado) return;
+
+        try {
+          StatusHandler.LShow();
+          const response = await verificarReconexionTanque(this.form.numero_orden);
+          if (response?.data) {
+            this.setForm(response.data);
+          }
+          StatusHandler.ShowStatus("Reconexión verificada correctamente.", StatusHandler.OPERATION.CREATE, StatusHandler.STATUS.SUCCESS);
+        } catch (err) {
+          StatusHandler.ShowStatus("Error al verificar reconexión", StatusHandler.OPERATION.DEFAULT, StatusHandler.STATUS.FAIL);
+        }
+      },
+
+      /**
+       * 🛡️ Autoriza la reconexión
+       */
+      async autorizarReconexion() {
+        const confirmado = await StatusHandler.Confirm(
+          "¿Está seguro de autorizar la reconexión?",
+          "Esta acción autorizará la reconexión final."
+        );
+
+        if (!confirmado) return;
+
+        try {
+          StatusHandler.LShow();
+          const response = await autorizarReconexionTanque(this.form.numero_orden);
+          if (response?.data) {
+            this.setForm(response.data);
+          }
+          StatusHandler.ShowStatus("Reconexión autorizada correctamente.", StatusHandler.OPERATION.CREATE, StatusHandler.STATUS.SUCCESS);
+        } catch (err) {
+          StatusHandler.ShowStatus("Error al autorizar reconexión", StatusHandler.OPERATION.DEFAULT, StatusHandler.STATUS.FAIL);
+        }
+      },
+
+      /**
+       * 🔧 Activa modo edición para Reconexión
+       */
+      activarEdicionReconexion() {
+        this.modoEdicionReconexion = true;
+        this.valoresOriginalesReconexion = {
+          fecha_hora: this.form.reconexion_fecha_hora,
+          lote: this.form.reconexion_lote,
+          numero_tanque: this.form.reconexion_numero_tanque
+        };
+      },
+
+      /**
+       * ❌ Cancela edición para Reconexión
+       */
+      cancelarEdicionReconexion() {
+        this.modoEdicionReconexion = false;
+        this.form.reconexion_fecha_hora = this.valoresOriginalesReconexion.fecha_hora;
+        this.form.reconexion_lote = this.valoresOriginalesReconexion.lote;
+        this.form.reconexion_numero_tanque = this.valoresOriginalesReconexion.numero_tanque;
+      },
+
+      /**
+       * 💾 Guarda cambios de edición para Reconexión
+       */
+      async guardarCambiosReconexion() {
+        const confirmado = await StatusHandler.Confirm("¿Desea guardar los cambios en la reconexión?");
+        if (!confirmado) return;
+
+        try {
+          StatusHandler.LShow();
+          const response = await saveValidacionTanque(this.getData());
+          if (response?.data) {
+            this.setForm(response.data);
+            this.modoEdicionReconexion = false;
+          }
+          StatusHandler.ShowStatus("Cambios guardados correctamente", StatusHandler.OPERATION.UPDATE, StatusHandler.STATUS.SUCCESS);
+        } catch (err) {
+          StatusHandler.ShowStatus("Error al guardar cambios", StatusHandler.OPERATION.DEFAULT, StatusHandler.STATUS.FAIL);
+        }
       }
-
-
-
-    // async autorizarOrden() {
-    //   try {
-    //     StatusHandler.LShow();
-
-    //     const payload = {
-    //       ...this.getData(),
-    //       : 3,
-    //     };
-
-    //     await saveValidacionTanque(payload);
-    //     await autorizarValidacionTanque(this.form.numero_orden);
-
-    //     this.estado = 3;
-    //     this.form.controlCalidad = payload.control_calidad;
-
-    //     this.$forceUpdate(); // 👈 asegura que Vue reaccione
-
-    //     StatusHandler.ShowStatus(
-    //       "Orden autorizada correctamente",
-    //       StatusHandler.OPERATION.UPDATE,
-    //       StatusHandler.STATUS.SUCCESS
-    //     );
-    //   } catch (err) {
-    //     StatusHandler.ShowStatus(
-    //       "Error al autorizar orden",
-    //       StatusHandler.OPERATION.UPDATE,
-    //       StatusHandler.STATUS.FAIL
-    //     );
-    //   } finally {
-    //     StatusHandler.LClose();
-    //   }
-    // }
 
     },
 };

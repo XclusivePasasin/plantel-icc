@@ -43,7 +43,7 @@
                                                 </a>
                                             </li>                                               
 
-                                            @foreach(Session::get('main_menu') as $ite_menu)
+                                            @foreach(collect(Session::get('main_menu', []))->unique('menu') as $ite_menu)
                                             <li class="sa-nav__menu-item sa-nav__menu-item--has-icon">
                                                 <a href="{{route($ite_menu->path,['page_pass' => $ite_menu->menu])}}" class="sa-nav__link">
                                                     <span class="sa-nav__icon"><i class="{{$ite_menu->icon}}"></i></span>

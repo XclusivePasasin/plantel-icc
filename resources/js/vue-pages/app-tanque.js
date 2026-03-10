@@ -38,7 +38,15 @@ const appValidacionTanque = new Vue({
                     control_calidad: orderData.orden.control_calidad || '',
                     lote: orderData.orden.lote || '',
                     numero_tanque: orderData.orden.numero_tanque || '',
-                    estado: orderData.orden.estado ?? 0, // ⬅️ Usar ?? 0 para respetar el estado 0
+                    estado: Number(orderData.orden.estado ?? 0),
+                    // Reconexión
+                    reconexion_estado: Number(orderData.orden.reconexion_estado ?? 0),
+                    reconexion_fecha_hora: orderData.orden.reconexion_fecha_hora || '',
+                    reconexion_lote: orderData.orden.reconexion_lote || '',
+                    reconexion_numero_tanque: orderData.orden.reconexion_numero_tanque || '',
+                    reconexion_operaria: orderData.orden.reconexion_operaria || '',
+                    reconexion_supervisor: orderData.orden.reconexion_supervisor || '',
+                    reconexion_control_calidad: orderData.orden.reconexion_control_calidad || '',
                     ...(orderData.validacion || {}), // si hay datos locales
                 };
 
@@ -84,6 +92,15 @@ const appValidacionTanque = new Vue({
             try {
                 const response = await saveValidacionTanque(payload);
                 if ([200, 201].includes(response.status)) {
+                    // ✅ Actualizar los datos locales con la respuesta del servidor
+                    if (response.data && response.data.data) {
+                        this.ordenActual.validacionTanque = {
+                            ...this.ordenActual.validacionTanque,
+                            ...response.data.data
+                        };
+                        this.helpers.estado = response.data.data.estado ?? this.helpers.estado;
+                    }
+
                     StatusHandler.ShowStatus(
                         "Validación de tanque guardada correctamente.",
                         StatusHandler.OPERATION.SAVE,

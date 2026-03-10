@@ -59,7 +59,7 @@
                         </a>
                     </div>
                 </div>                
-            @foreach(Session::get('main_menu') as $ite_menu)
+            @foreach(collect(Session::get('main_menu', []))->unique('menu') as $ite_menu)
                 <div class="col-6 col-md-4 col-lg-3">
                     <div class="card text-center">
                         <a  href="{{route($ite_menu->path,['page_pass' => $ite_menu->menu])}}" class="text-reset p-5 text-decoration-none sa-hover-area">

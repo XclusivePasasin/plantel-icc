@@ -509,10 +509,15 @@ class ReportController extends Controller
             ->where('num_id', $order_code)   
             ->first();
 
+        $tanque = DB::table('validaciones_tanque')
+            ->whereRaw("REPLACE(numero_orden, ' ', '') = ?", [preg_replace('/\s+/', '', $order_code)])
+            ->first();
+
         if ($inspecciones->code == 1 && $inspecciones->data->inspecciones->estado == 5) {
             $data = [
                 'data' => $inspecciones->data,
-                'packing' => $packing
+                'packing' => $packing,
+                'tanque' => $tanque
             ];
             $pdf = PDF::loadView('reports.inspecciones', $data)->setPaper('a4', 'letter');
             $fechaActual = date('Y-m-d');

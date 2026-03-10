@@ -153,13 +153,12 @@ input[type="checkbox"]:disabled:after {
 
                     <label for="fecharealizada" class="form-label"
                       >FECHA: </label
-                    ><input
-                      type="text"
+                    >
+                    <input
+                      type="date"
                       class="form-control"
                       :disabled="data[0].controles.seccion == 25 || data[0].user.rolname!='PROD'"
                       v-model="data[0].controles.fecharealizada"
-                      v-mask="'##/##/####'"
-                      placeholder="DD/MM/YYYY"
                       id="fecharealizada"
                     />
 
@@ -186,11 +185,10 @@ input[type="checkbox"]:disabled:after {
 
                 <th style="font-size:11px;">Hora</th>
                 <th v-for="index in 25" :key="'h-' + index" style="text-align:center; font-size:9px;">
-                    <input style="width: 90%;" type="text" v-model="data[0].controles.horas[index-1]"
-                     v-mask="'##:##'"
+                    <input style="width: 90%;" type="time" v-model="data[0].controles.horas[index-1]"
                     @input="validateTimeFormat(index - 1)"
                     :disabled="data[0].user.rolname !== 'PROD' || data[0].controles.seccion !== (index - 1) || index === 25"
-                    maxlength="5" placeholder="HH:MM" />
+                    placeholder="HH:MM" />
                 </th>
 
               </tr>
@@ -543,6 +541,27 @@ export default {
       this.$nextTick(() => {
         this.renderChart(); // canvas ya está en el DOM
       });
+
+      // Cargar fecha actual si no existe
+      if (this.data[0]?.user?.rolname === 'PROD') {
+        const controles = this.data[0].controles;
+        if (!controles.fecharealizada) {
+          const now = new Date();
+          const yyyy = now.getFullYear();
+          const mm = String(now.getMonth() + 1).padStart(2, '0');
+          const dd = String(now.getDate()).padStart(2, '0');
+          controles.fecharealizada = `${yyyy}-${mm}-${dd}`;
+        }
+        
+        // Cargar hora actual en la seccion actual
+        const seccion = controles.seccion || 0;
+        if (!controles.horas[seccion]) {
+            const now = new Date();
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            this.$set(controles.horas, seccion, `${hours}:${minutes}`);
+        }
+      }
     },
   watch: {
        pesos_por_hora(newVal) {

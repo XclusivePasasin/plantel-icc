@@ -205,8 +205,9 @@ export function formatPackingAPI(data) {
         unit: ng.unity,
         almacen: ng.almacen,
         stock: ng.stock,
+        tipo_prod: ng.tipo_prod || "",
         lot1: ng.lot1 || null,
-        entrega1: null,
+        entrega1: (ng.entrega1 !== undefined && ng.entrega1 !== null) ? ng.entrega1 : null,
         entrega2: null,
         return: null
       }
@@ -311,6 +312,7 @@ export function formatPackingDB(data) {
         unit: mat.unit || mat.unity || "",
         stock: mat.stock || 0,
         almacen: mat.almacen || "",
+        tipo_prod: mat.tipo_prod || "",
         lot1: (mat.lot1 !== undefined && mat.lot1 !== null) ? mat.lot1 : null,
         entrega1: (mat.entrega1 !== undefined && mat.entrega1 !== null) ? mat.entrega1 : null,
         entrega2: (mat.entrega2 !== undefined && mat.entrega2 !== null) ? mat.entrega2 : null,

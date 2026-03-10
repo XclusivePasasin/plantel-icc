@@ -76,8 +76,9 @@
                                             type="date"
                                             placeholder="DD/MM/AAAA"
                                             v-model="e.date_init"
-                                            :disabled="!(edit_mode && has_cap('cap-produccion') && (data.status == 2 || data.status == 3)) || originalTimes[index].date_init"
+                                            :disabled="!(edit_mode && has_cap('cap-produccion') && parseInt(data.status) === 2) || !!originalTimes[index].date_init"
                                             class="form-control form-control-sm defblue1"
+                                            @focus="autoFillDateTime(index)"
                                         />
 
                                         <!-- <input type="text"
@@ -104,7 +105,7 @@
                                 <div class="col-12 col-md-6">
                                     <div class="input-group">
                                         <input type="time"
-                                            :disabled="!(edit_mode && has_cap('cap-produccion') && (data.status == 2 || data.status == 3)) || originalTimes[index].time_init"
+                                            :disabled="!(edit_mode && has_cap('cap-produccion') && parseInt(data.status) === 2) || !!originalTimes[index].time_init"
                                             v-model="e.time_init"
                                             class="form-control form-control-sm defblue1"
                                         />
@@ -133,7 +134,7 @@
                     <div class="row">
                         <div class="col-12 col-md-6">
                             <div class="row">
-                                <div  div class="col-12 col-md-6">
+                                <div class="col-12 col-md-6">
                                     <span class="fw-bold">FECHA DE FINALIZACIÓN</span>
                                 </div>
                                 <div class="col-12 col-md-6">
@@ -142,8 +143,9 @@
                                             type="date"
                                             placeholder="DD/MM/AAAA"
                                             v-model="e.date_end"
-                                            :disabled="!(has_cap('cap-produccion') && data.status == 3 && edit_mode) || originalTimes[index].date_end"
+                                            :disabled="!(edit_mode && has_cap('cap-produccion') && parseInt(data.status) === 3)"
                                             class="form-control form-control-sm defblue1"
+                                            @focus="autoFillDateTime(index, 'end')"
                                         />
 
                                         <!-- <input type="text"
@@ -171,7 +173,7 @@
                                     <div class="input-group">
                                         <input
                                             type="time"
-                                            :disabled="!(has_cap('cap-produccion') && data.status == 3 && edit_mode) || originalTimes[index].time_end"
+                                            :disabled="!(edit_mode && has_cap('cap-produccion') && parseInt(data.status) === 3)"
                                             v-model="e.time_end"
                                             class="form-control form-control-sm defblue1"
                                         />
@@ -279,7 +281,7 @@
                                 <input type="text" :disabled="!canEditMaterialsField" v-model="e.entrega2"  style="width: 180px;" placeholder="Ingresar valor ..." class="form-control form-control-sm defblue1" @input="e.entrega2 = e.entrega2.replace(/[^0-9.]/g, '')" />
                             </td>
                             <td class="text-center">
-                                <input type="text" :disabled="!canEditMaterialsField" v-model="e.return"  style="width: 180px;" placeholder="Ingresar valor ..." class="form-control form-control-sm defblue1" @input="e.return = e.return.replace(/[^0-9.]/g, '')" />
+                                <input type="text" :disabled="!canEditReturnField" v-model="e.return"  style="width: 180px;" placeholder="Ingresar valor ..." class="form-control form-control-sm defblue1" @input="e.return = e.return.replace(/[^0-9.]/g, '')" />
                             </td>
                         </tr>
                     </tbody>
@@ -324,7 +326,7 @@
                         <div class="d-flex align-items-center">
                             <input 
                                 type="number"
-                                :disabled="!canEditCantidad(index) || isFieldLocked(index, 'cantidad') || has_cap('cap-bodega')"
+                                :disabled="!canEditCantidad(index)"
                                 placeholder="Cajas"
                                 class="form-control form-control-sm defblue1 me-1"
                                 :value="getPart(eg.cantidad, 0)"
@@ -334,7 +336,7 @@
 
                                 <input 
                                 type="number"
-                                :disabled="!canEditCantidad(index) || isFieldLocked(index, 'cantidad') || has_cap('cap-bodega')"
+                                :disabled="!canEditCantidad(index)"
                                 placeholder="Unid"
                                 class="form-control form-control-sm defblue1 ms-1"
                                 :value="getPart(eg.cantidad, 1)"
@@ -342,25 +344,6 @@
                                 style="width: 50%"
                                 />
 
-                            <!-- <input 
-                                type="number"
-                                :disabled="!canEditEntrega(index) || isFieldLocked(index, 'cantidad') || has_cap('cap-bodega')"
-                                placeholder="Cajas" 
-                                class="form-control form-control-sm defblue1 me-1"  
-                                :value="getPart(eg.cantidad, 0)"
-                                @input="updateCompositeField(index, 'cantidad', 0, $event.target.value)"
-                                style="width: 50%"
-                            />
-                            <span class="mx-1 fs-5">/</span>
-                            <input 
-                                type="number"
-                                :disabled="!canEditEntrega(index) || isFieldLocked(index, 'cantidad') || has_cap('cap-bodega')"
-                                placeholder="Unid" 
-                                class="form-control form-control-sm defblue1 ms-1"  
-                                :value="getPart(eg.cantidad, 1)"
-                                @input="updateCompositeField(index, 'cantidad', 1, $event.target.value)"
-                                style="width: 50%"
-                            /> -->
                         </div>
                     </div>
                 </div>
@@ -381,17 +364,7 @@
                         />
                     </div>
 
-                    <!-- <div class="col-7">
-                        <input 
-                            :id="'entrega-entregado-'+index" 
-                            type="text"
-                            :disabled="!canEditEntrega(index) || isFieldLocked(index, 'entrega') || has_cap('cap-bodega')"
-                            placeholder="..." 
-                            class="form-control form-control-sm defblue1" 
-                            v-model="eg.entrega"
-                            @input="lockFieldIfFilled(index, 'entrega')"
-                        />
-                    </div> -->
+                   
                 </div>
             </div>
             <div class="col-12 col-md-3">
@@ -403,7 +376,7 @@
                         <div class="d-flex align-items-center">
                             <input 
                                 type="number"
-                                :disabled="!canEditRecibido(index) || isFieldLocked(index, 'recibe') || has_cap('cap-bodega')"
+                                :disabled="!canEditRecibido(index)"
                                 placeholder="Cajas"
                                 class="form-control form-control-sm defblue1 me-1"
                                 :value="getPart(eg.recibe, 0)"
@@ -413,7 +386,7 @@
 
                             <input 
                                 type="number"
-                                :disabled="!canEditRecibido(index) || isFieldLocked(index, 'recibe') || has_cap('cap-bodega')"
+                                :disabled="!canEditRecibido(index)"
                                 placeholder="Unid"
                                 class="form-control form-control-sm defblue1 ms-1"
                                 :value="getPart(eg.recibe, 1)"
@@ -444,7 +417,7 @@
                     <label for="">ENTREGADO BODEGA</label>
                 </div>
                 <div class="col-12 col-md-4 text-center">
-                    <input disabled="true" :value="data.auditor.user_autoriza" type="text" class="form-control form-control-sm text-center d-block defblue1">
+                    <input disabled="true" :value="data.status >= 3 ? data.auditor.user_autoriza : null" type="text" class="form-control form-control-sm text-center d-block defblue1">
                     <label for="">AUTORIZADO</label>
                 </div>
                 <div class="col-12 col-md-4 text-center">
@@ -492,6 +465,7 @@
                    <button
                         type="button"
                         v-if="canEdit && !edit_mode"
+                        :disabled="data.verificacion_lote == 1 && has_cap('cap-bodega') && !has_cap('cap-produccion')"
                         @click="edit_mode = true;"
                         class="btn btn-primary"
                         >
@@ -520,14 +494,31 @@
                     <!-- <button type="button" v-if="edit_mode && data.status == 2 && has_cap('cap-supcalidad')" @click="authorize" class="btn btn-success">Guardar</button>                 -->
 
                     <!-- <button type="button"  v-if="canEdit2 && !edit_mode" @click="edit_mode = true" class="btn btn-warning">Modificar</button> -->
-                    <button type="button"  v-if="edit_mode == false && data.status == 2 && has_cap('cap-auxcontrol-calidad')"  @click="edit_mode = true" class="btn btn-primary">Modificar</button> <!--Este boton le aparece a rol de auxcontrol-calidad-->
-                    <button type="button"  v-if="edit_mode == false && data.status == 3 && has_cap('cap-produccion')" @click="edit_mode = true" class="btn btn-primary">Modificar</button> <!--Este boton le aparece a rol de produccion en el ultimo paso-->
+
                     <button type="button" v-if="edit_mode && data.status == 3 && has_cap('cap-produccion')" @click="updateTracking" class="btn btn-success">Guardar</button>
                     
                     <button type="button" v-if="edit_mode == false && data.status == 2 && has_cap('cap-auxcontrol-calidad')"  :disabled="data.verificacion_lote == 0" @click="authorize" class="btn btn-success">Autorizar</button>
 
-                    <button type="button" v-if="edit_end == false && edit_mode == false && data.status == 3 && has_cap('cap-produccion')" @click="preFinish" class="btn btn-success">Finalizar</button>
+                    <button type="button" v-if="edit_end == false && edit_mode == false && parseInt(data.status) === 3 && has_cap('cap-produccion')" @click="preFinish" class="btn btn-success">Finalizar</button>
                     <button type="button" v-if="edit_end && data.status == 3 && has_cap('cap-produccion')" @click="finishOrder" class="btn btn-success">Confirmar</button>
+
+                    <!-- Botones exclusivos para Bodega PT: editar Recibidos -->
+                    <button
+                        type="button"
+                        v-if="has_cap('cap-bodegapt') && !edit_mode_bodegapt && parseInt(data.status) == 4"
+                        @click="edit_mode_bodegapt = true"
+                        class="btn btn-warning"
+                    >
+                        Modificar Recibidos
+                    </button>
+                    <button
+                        type="button"
+                        v-if="has_cap('cap-bodegapt') && edit_mode_bodegapt"
+                        @click="saveBodegaPT"
+                        class="btn btn-success"
+                    >
+                        Guardar Recibidos
+                    </button>
                     <!-- Botón Verificar / Estado -->
                     <button
                         type="button"
@@ -554,7 +545,8 @@
 
                     <button
                         type="button"
-                        v-if="(has_cap('cap-produccion') || has_cap('cap-supcalidad')) && data.status >= 1 && data.status < 4 && !data.auditor.user_entrega"
+                        v-if="has_cap('cap-bodega') && data.status >= 1 && data.status < 4 && !data.auditor.user_entrega"
+                        :disabled="data.verificacion_lote != 1"
                         @click="openConfirmModal('entrega')"
                         class="btn btn-info"
                         >
@@ -563,10 +555,10 @@
 
                     <button
                         type="button"
-                        v-if="(has_cap('cap-produccion') || has_cap('cap-supcalidad')) && data.status >= 1 && data.status < 4 && !data.auditor.user_recibe && data.auditor.user_entrega"
+                        v-if="has_cap('cap-produccion') && data.status >= 1 && data.status < 4 && !data.auditor.user_recibe"
+                        :disabled="!data.auditor.user_entrega"
                         @click="openConfirmModal('recibe')"
-                        class="btn btn-info"
-                        >
+                        class="btn btn-info">
                         Recibir Materiales
                     </button>
 
@@ -601,6 +593,7 @@ import moment from 'moment';
                     F2: false
                 },
                 edit_mode: false,
+                edit_mode_bodegapt: false, // flag independiente para cap-bodegapt
                 edit_end: false,//para campos antes de cierre de orden
                 originalTimes: [],
                 originalOperarios: [],
@@ -648,15 +641,21 @@ import moment from 'moment';
                     return true;
                 }
                 
-                // Estado 1: solo bodega
-                if (this.data.status === 1) {
-                    return this.has_cap('cap-bodega');
+                // Producción puede editar (en estado 2 o 3) SOLO si ya se entregó y recibió materiales
+                if (this.has_cap('cap-produccion') && (this.data.status === 2 || this.data.status === 3)) {
+                    if (this.data.auditor.user_entrega && this.data.auditor.user_recibe) {
+                        return true;
+                    }
                 }
-                
-                // Estado 2: solo producción
-                if (this.data.status === 2) {
-                    return this.has_cap('cap-produccion');
+
+                // Otros roles autorizados para modificar en estados iniciales (Supervisor, Auxiliar)
+                if (this.data.status === 1 || this.data.status === 2) {
+                    if (this.has_cap('cap-supcalidad') || this.has_cap('cap-auxcontrol-calidad')) {
+                        return true;
+                    }
                 }
+
+                return false;
             },
             canEdit2() {
                 // Para otros estados, mantener la lógica original
@@ -669,9 +668,12 @@ import moment from 'moment';
                     return true;
                 }
                 
-                // Estado 2: solo producción
-                if (this.data.status === 2 && this.has_cap('cap-produccion')) {
-                    return true;
+                // Producción en status 3 usa su propio botón (updateTracking), no este
+                // Producción solo puede usar este botón en status 2 (antes de autorización)
+                if (this.has_cap('cap-produccion') && this.data.status === 2) {
+                    if (this.data.auditor.user_entrega && this.data.auditor.user_recibe) {
+                        return true;
+                    }
                 }
                 
                 // Otros casos para supcalidad y auxcontrol-calidad (manteniendo la lógica original)
@@ -688,6 +690,12 @@ import moment from 'moment';
                     (this.has_cap('cap-bodega') && this.data.status <= 3) ||
                     (this.has_cap('cap-supcalidad') && this.data.status == 1)
                  );
+            },
+            canEditReturnField() {
+                 if (this.data.status >= 4) {
+                     return false;
+                 }
+                 return this.edit_mode && this.has_cap('cap-produccion');
             }
         },
         created: function(){
@@ -708,45 +716,41 @@ import moment from 'moment';
             //         }
             // },
             canEditCantidad(index) {
+                // Orden finalizada: todo bloqueado
+                if (parseInt(this.data.status) >= 4) return false;
+
+                // La entrega solo se habilita si la línea de tiempo correspondiente tiene fecha de finalización
+                const time = this.data.times && this.data.times[index];
+                if (!time || !time.date_end) return false;
+
+                // El rol que finaliza (Producción) puede editar durante la finalización
+                if (this.edit_end && this.has_cap('cap-produccion')) return true;
+
                 if (!this.edit_mode) return false;
 
                 const status = parseInt(this.data.status);
 
-                // Producción en status 3: requiere inicio lleno
-                if (this.has_cap('cap-produccion') && status === 3) {
-                    if (!this.data.times || !this.data.times[index]) return false;
-                    const t = this.data.times[index];
-                    return !!(t.date_init && t.time_init);
-                }
+                // Permitir si es Producción y status <= 3
+                return this.has_cap('cap-produccion') && status <= 3;
+            },
 
-                // Si supcalidad puede editar (según tu lógica)
-                if (this.has_cap('cap-supcalidad') && status >= 1 && status < 4) {
-                    return true;
-                }
+            canEditRecibido(index) {
+                // "Recibido" es exclusivo de cap-bodegapt
+                if (!this.has_cap('cap-bodegapt')) return false;
 
-                // Bodega la estás bloqueando con has_cap('cap-bodega') en el template,
-                // así que aquí no hace falta manejarlo.
-                return false;
-                },
-
-                canEditRecibido(index) {
-                if (!this.edit_mode) return false;
+                // La entrega solo se habilita si la línea de tiempo tiene fecha de finalización
+                const time = this.data.times && this.data.times[index];
+                if (!time || !time.date_end) return false;
 
                 const status = parseInt(this.data.status);
 
-                // Producción en status 3: requiere inicio lleno (igual que cantidad)
-                if (this.has_cap('cap-produccion') && status === 3) {
-                    if (!this.data.times || !this.data.times[index]) return false;
-                    const t = this.data.times[index];
-                    return !!(t.date_init && t.time_init);
+                // En status 4 (finalizada): solo permitir si edit_mode_bodegapt está activo
+                if (status >= 4) {
+                    return this.edit_mode_bodegapt;
                 }
 
-                // Si supcalidad puede editar
-                if (this.has_cap('cap-supcalidad') && status >= 1 && status < 4) {
-                    return true;
-                }
-
-                return false;
+                // En status <= 3: permitir con edit_mode, edit_end o edit_mode_bodegapt
+                return this.edit_mode || this.edit_end || this.edit_mode_bodegapt;
             },
 
             getPart(value, partIndex) {
@@ -759,22 +763,58 @@ import moment from 'moment';
                 if (currentValue === null || currentValue === undefined) currentValue = '';
                 
                 let parts = String(currentValue).split('/');
-                
-                // Asegurar que hay al menos 2 partes
                 if (parts.length < 2) parts = [parts[0] || '', ''];
+                
+                // Guardar el valor anterior ANTES de actualizar (para comparar con recibe)
+                const oldPartValue = parts[partIndex];
                 
                 // Actualizar la parte correspondiente
                 parts[partIndex] = newValue;
-                
-                // Unir de nuevo
                 this.data.entregas[index][field] = parts.join('/');
-                
-                // 🔒 NUEVO: Bloquear el campo si ahora tiene valor
-                // this.lockFieldIfFilled(index, field);
+
+                // 🔄 Sincronizar CANTIDAD → RECIBIDO si aún están en sintonía
+                if (field === 'cantidad') {
+                    let currentRecibe = this.data.entregas[index]['recibe'];
+                    if (currentRecibe === null || currentRecibe === undefined) currentRecibe = '';
+                    let recibeParts = String(currentRecibe).split('/');
+                    if (recibeParts.length < 2) recibeParts = [recibeParts[0] || '', ''];
+
+                    // Actualizar recibe si:
+                    // - Recibe está vacío (primera vez), O
+                    // - Recibe tiene el mismo valor que el ANTERIOR de cantidad (siguen en sincronía)
+                    if (!recibeParts[partIndex] || recibeParts[partIndex].trim() === '' || recibeParts[partIndex] === oldPartValue) {
+                        recibeParts[partIndex] = newValue;
+                        this.data.entregas[index]['recibe'] = recibeParts.join('/');
+                    }
+                }
                 
                 this.$forceUpdate(); 
             },
+
+
+            // Auto-rellena fecha y hora con la fecha/hora actual si están vacías
+            // type: 'init' (por defecto) o 'end'
+            autoFillDateTime(index, type) {
+                const e = this.data.times[index];
+                if (type === 'end') {
+                    if (!e.date_end && !e.time_end) {
+                        const now = moment();
+                        e.date_end = now.format('YYYY-MM-DD');
+                        e.time_end = now.format('HH:mm');
+                        this.$forceUpdate();
+                    }
+                } else {
+                    if (!e.date_init && !e.time_init) {
+                        const now = moment();
+                        e.date_init = now.format('YYYY-MM-DD');
+                        e.time_init = now.format('HH:mm');
+                        this.$forceUpdate();
+                    }
+                }
+            },
+
             canEditEntrega(index) {
+
                 if (!this.edit_mode) return false;
 
                 let status = parseInt(this.data.status);
@@ -804,7 +844,17 @@ import moment from 'moment';
                 return false;
             },
             isFieldLocked(index, fieldName) {
-                // 🔒 NUEVO: Primero verificar locks en memoria (bloqueo inmediato)
+                // Bloqueo total si la orden está finalizada
+                if (Number(this.data.status) >= 4) {
+                    return true; 
+                }
+
+                // Para Cantidad y Recibe, permitir edición hasta el final (status < 4)
+                if (fieldName === 'cantidad' || fieldName === 'recibe') {
+                    return false;
+                }
+
+                // 🔒 Para otros campos (como firmas), verificar locks en memoria (bloqueo inmediato)
                 if (this.lockedEntregas[index] && this.lockedEntregas[index][fieldName]) {
                     return true;
                 }
@@ -815,35 +865,10 @@ import moment from 'moment';
                 }
 
                 const originalValue = this.originalEntregas[index][fieldName];
-                
-                // Si es nulo o indefinido, asumimos que no está lleno
                 if (originalValue === null || originalValue === undefined) return false;
 
                 const strVal = String(originalValue).trim();
-                
-                // Si es string vacío, no está bloqueado
-                if (strVal === '') return false;
-
-                // Para campos compuestos (cantidad y recibe) que usan el formato "valor/valor"
-                // IMPORTANTE: cantidad y recibe son INDEPENDIENTES - cada uno se bloquea solo si tiene valor
-                if (fieldName === 'cantidad' || fieldName === 'recibe') {
-                    // Si contiene "/", es formato numérico "cajas/unidades"
-                    if (strVal.includes('/')) {
-                        const parts = strVal.split('/');
-                        const part0 = parts[0] ? parts[0].trim() : '';
-                        const part1 = parts[1] ? parts[1].trim() : '';
-                        
-                        // Solo bloquear este campo específico si tiene valor numérico
-                        // No afecta al otro campo (cantidad y recibe son independientes)
-                        return part0 !== '' || part1 !== '';
-                    }
-                    // Si NO contiene "/", podría ser texto (nombre de persona) - también bloquear
-                    // Esto maneja casos donde 'recibe' tiene nombres en lugar de números
-                    return strVal !== '';
-                }
-
-                // Para campos simples (entrega), simplemente verificar si tiene cualquier texto
-                return true;
+                return strVal !== '';
             },
             // 1. MODIFICAR la inicialización de los datepickers para actualizar el modelo Vue
             initDatepickers() {
@@ -1095,6 +1120,35 @@ import moment from 'moment';
                 }
             },
 
+            saveBodegaPT: async function() {
+                var confirm = await StatusHandler.Confirm("¿Confirmar guardado de recibidos?", "");
+                if (!confirm) return;
+
+                StatusHandler.LShow();
+                try {
+                    const result = await upsertOrderPacking(this.data);
+                    const response = result.data;
+                    if (response.code == 0) {
+                        StatusHandler.ShowStatus(response.msg, StatusHandler.OPERATION.DEFAULT, StatusHandler.STATUS.FAIL);
+                        return;
+                    }
+
+                    this.data = formatPackingDB(response.data);
+                    this.edit_mode_bodegapt = false;
+
+                    this.reloadOriginalTimes();
+                    this.reloadOriginalOperarios();
+                    this.reloadOriginalEntregas();
+                    this.initializeLockedEntregas();
+
+                    StatusHandler.LClose();
+                    StatusHandler.ShowStatus("Recibidos guardados exitosamente!", StatusHandler.OPERATION.CREATE, StatusHandler.STATUS.SUCCESS);
+                } catch (ex) {
+                    StatusHandler.LClose();
+                    StatusHandler.Exception("Guardar recibidos", ex);
+                }
+            },
+
         async handleVerifyLot() {
             // Protege contra doble click
             if (this.verifying) return;
@@ -1253,7 +1307,8 @@ import moment from 'moment';
                     return;
                 }
                 // ✅ Asignar firma si corresponde
-                this.checkIfStartDateFilled();
+                // (Se ha eliminado la llamada automática a checkIfStartDateFilled según petición)
+                // this.checkIfStartDateFilled();
                 // DEBUG: Log time data before sending
                 console.log("Times data before save:", JSON.stringify(this.data.times));
 
@@ -1261,6 +1316,7 @@ import moment from 'moment';
                     times: JSON.stringify(this.data.times),
                     operarios: JSON.stringify(this.data.operarios),
                     entregas: JSON.stringify(this.data.entregas),
+                    materials: JSON.stringify(this.data.materials),
                     // performance_teorico: this.data.total_units,
                     performance: this.data.performance,
                     observations: this.data.observations

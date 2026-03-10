@@ -100,7 +100,7 @@ Route::get('packing/order/uxc/{order_code}', 'EmpaqueController@getUXCByOrder')
     ->name('packing.getUXC')
     ->middleware('auth');
 #Carga el blade con componente de busqueda orden desde API o DB
-Route::get('packing/load','DashboardController@showPacking')->name('packing.load')->middleware('auth', 'role:Bodega|Produccion|');
+Route::get('packing/load','DashboardController@showPacking')->name('packing.load')->middleware('auth', 'role:Bodega|Produccion|Bodega PT');
 # Realiza busqueda de orden de empaque desde API o DB
 Route::get('packing/orders/{code}','EmpaqueController@search')->name('packing.search')->middleware('auth');
 # AJAX Guarda o actualiza una orden de empaque
@@ -242,6 +242,8 @@ Route::prefix('tanque')->group(function () {
     Route::post('/guardar', [TanqueController::class, 'storeOrUpdate']);
     Route::post('/verificar/{numero_orden}', [TanqueController::class, 'verificar'])->name('tanque.verificar');
     Route::post('/autorizar/{numero_orden}', [TanqueController::class, 'autorizar'])->name('tanque.autorizar');
+    Route::post('/verificar-reconexion/{numero_orden}', [TanqueController::class, 'verificarReconexion'])->name('tanque.verificar-reconexion');
+    Route::post('/autorizar-reconexion/{numero_orden}', [TanqueController::class, 'autorizarReconexion'])->name('tanque.autorizar-reconexion');
     Route::get('/lote/{numero_orden}', [TanqueController::class, 'getLotePorOrden'])->name('tanque.lote');
 });
 

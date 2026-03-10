@@ -124,7 +124,7 @@ class MixController extends Controller
             $order->save();
 
             $order->refresh();
-            $order->load('materials');
+            $order->load('mixMaterials');
 
             $salida["code"] = 1;
             $salida["msg"]  = "Usuario de entrega MP actualizado correctamente";
@@ -289,7 +289,7 @@ class MixController extends Controller
         }
 
         $order->refresh();
-        $order->load('materials');
+        $order->load('mixMaterials');
 
         $salida["code"] = 1;
         $salida["msg"] = "Processed Successfully";
@@ -346,7 +346,7 @@ class MixController extends Controller
 
         // Refrescar la orden y cargar los materiales
         $order->refresh();
-        $order->load('materials');
+        $order->load('mixMaterials');
 
         // Retornar la respuesta exitosa
         $salida["code"] = 1;
@@ -624,7 +624,7 @@ class MixController extends Controller
         }
 
         $order->refresh();
-        $order->load('materials');
+        $order->load('mixMaterials');
 
         $salida["code"] = 1;
         $salida["msg"] = "Processed Successfully";

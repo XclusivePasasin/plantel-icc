@@ -51,6 +51,36 @@ class TanqueController extends Controller
         ]);
     }
 
+    // ✅ Verifica Reconexión (cambia reconexion_estado a 2)
+    public function verificarReconexion(Request $request, $numero_orden)
+    {
+        $registro = ValidacionTanque::where('numero_orden', $numero_orden)->firstOrFail();
+
+        $registro->reconexion_estado = 2;
+        $registro->reconexion_supervisor = $this->getCurrentUserName();
+        $registro->save();
+
+        return response()->json([
+            'message' => 'Reconexión verificada correctamente.',
+            'data'    => $registro
+        ]);
+    }
+
+    // ✅ Autoriza Reconexión (cambia reconexion_estado a 3)
+    public function autorizarReconexion(Request $request, $numero_orden)
+    {
+        $registro = ValidacionTanque::where('numero_orden', $numero_orden)->firstOrFail();
+
+        $registro->reconexion_estado = 3;
+        $registro->reconexion_control_calidad = $this->getCurrentUserName();
+        $registro->save();
+
+        return response()->json([
+            'message' => 'Reconexión autorizada correctamente.',
+            'data'    => $registro
+        ]);
+    }
+
 
     /**
      * Almacena o actualiza la validación de tanque para una orden.
@@ -66,7 +96,13 @@ class TanqueController extends Controller
             'lote'           => 'required|string|max:50',
             'numero_tanque'  => 'required|string|max:50',
             'codigo_empaque' => 'nullable|string|max:100',
-            'estado'         => 'nullable|integer|min:0|max:3'
+            'estado'         => 'nullable|integer|min:0|max:3',
+            // Reconexión
+            'reconexion_fecha_hora'      => 'nullable|date',
+            'reconexion_lote'            => 'nullable|string|max:50',
+            'reconexion_numero_tanque'   => 'nullable|string|max:50',
+            'reconexion_operaria'        => 'nullable|string|max:100',
+            'reconexion_estado'          => 'nullable|integer|min:0|max:3'
         ]);
 
         if ($validator->fails()) {
@@ -86,11 +122,21 @@ class TanqueController extends Controller
             'numero_tanque',
             'codigo_empaque',
             'estado',
+            'reconexion_fecha_hora',
+            'reconexion_lote',
+            'reconexion_numero_tanque',
+            'reconexion_operaria',
+            'reconexion_estado',
         ]);
 
         // ✅ Si es estado 0 o 1, registrar nombre como operaria
         if (in_array($data['estado'], [0, 1])) {
             $data['operaria'] = $this->getCurrentUserName();
+        }
+
+        // ✅ Si es estado de reconexión 1, registrar nombre como operaria de reconexión
+        if (isset($data['reconexion_estado']) && $data['reconexion_estado'] == 1) {
+            $data['reconexion_operaria'] = $this->getCurrentUserName();
         }
 
         $registro = ValidacionTanque::updateOrCreate(

@@ -824,6 +824,16 @@ export async function autorizarValidacionTanque(numero_orden) {
     return response.data;
 }
 
+export async function verificarReconexionTanque(numero_orden) {
+    const response = await axios.post(`/tanque/verificar-reconexion/${numero_orden}`);
+    return response.data;
+}
+
+export async function autorizarReconexionTanque(numero_orden) {
+    const response = await axios.post(`/tanque/autorizar-reconexion/${numero_orden}`);
+    return response.data;
+}
+
 export async function obtenerLotePorOrden(numero_orden) {
     const response = await axios.get(`/tanque/lote/${numero_orden}`);
     return response.data; // ✅ Retorna { message, lote }

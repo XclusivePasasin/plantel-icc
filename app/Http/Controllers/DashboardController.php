@@ -78,8 +78,8 @@ class DashboardController extends Controller
     }
 
     public function showPacking(Request $request){
-        // Verifica si el usuario tiene el rol de "Bodega" o "Producción"
-        if (!$request->user()->hasRole("Bodega") && !$request->user()->hasRole("Produccion") && !$request->user()->hasRole("AuxControlCalidad")) {
+        // Verifica si el usuario tiene el rol de "Bodega", "Bodega PT", o "Producción"
+        if (!$request->user()->hasRole("Bodega") && !$request->user()->hasRole("Bodega PT") && !$request->user()->hasRole("Produccion") && !$request->user()->hasRole("AuxControlCalidad")) {
             return redirect()->route('login.show'); // Redirige si no tiene ninguno de los roles
         }
         return view('packing.fetch-packing',
@@ -151,9 +151,41 @@ class DashboardController extends Controller
 
     private function searchActivePackingOrdersDB(){
         //Buscando ordenes de empaque registros locales
-        $order = Packing::where('status', '!=', 5)->get();
-        return $order;
+        $orders = Packing::where('status', '!=', 5)->get();
+
+        // 2. Ordenes de tanque validadas y listas
+        $tanques = \App\ValidacionTanque::where('estado', 3)
+            ->where(function($q) {
+                $q->where('reconexion_estado', 0)
+                  ->orWhere('reconexion_estado', 3);
+            })
+            ->get();
+
+        $merged = collect($orders);
+
+        foreach ($tanques as $t) {
+            $exists = collect($orders)->contains(function ($val) use ($t) {
+                return str_replace(' ', '', $val->num_id) === str_replace(' ', '', $t->numero_orden);
+            });
+
+            if (!$exists) {
+                $lote = ($t->reconexion_estado == 3 && !empty($t->reconexion_lote)) ? $t->reconexion_lote : $t->lote;
+                
+                // Intenta obtener nombre del producto desde mix order o API
+                $mixId = preg_replace('/-10$/', '-20', str_replace(' ', '', $t->numero_orden));
+                $mix = \App\MixOrder::whereRaw("REPLACE(num_id, ' ', '') = ?", [$mixId])->first();
+                $productName = $mix ? $mix->product_name : 'Validación completada';
+
+                $merged->push((object)[
+                    'id' => 't_' . $t->id,
+                    'num_id' => $t->numero_orden,
+                    'product_name' => $productName, 
+                    'lot_num' => $lote,
+                    'status' => 0 // Custom state maps to "Validación de Tanque Completada (Lista para cargar)"
+                ]);
+            }
+        }
+
+        return $merged;
     }
-
-
 }

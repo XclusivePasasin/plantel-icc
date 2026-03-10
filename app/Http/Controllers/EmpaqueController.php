@@ -184,7 +184,7 @@ class EmpaqueController extends Controller
             "data" => null
         ];
 
-        if (!Auth::user()->hasRole("Bodega") && !Auth::user()->hasRole("Produccion")) {
+        if (!Auth::user()->hasRole("Bodega") && !Auth::user()->hasRole("Bodega PT") && !Auth::user()->hasRole("Produccion")) {
             $salida["msg"] = "Operación denegada";
             return $salida;
         }
@@ -213,6 +213,14 @@ class EmpaqueController extends Controller
             $salida["msg"] = "Debe completar la validación de tanque antes de acceder a esta orden.";
             return $salida;
         }
+
+        // 🛑 (Opcional) Bloquear si hay una reconexión en curso — Comentado para permitir carga en Empaque
+        /*
+        if ($validacion->reconexion_estado > 0 && $validacion->reconexion_estado < 3) {
+            $salida["msg"] = "Hay una reconexión a tanque en proceso de autorización. Debe completarse antes de acceder a la orden.";
+            return $salida;
+        }
+        */
 
         // Buscar la orden en Packing usando cualquiera de las dos variantes
         $order = Packing::where(function ($q) use ($normalizedOrderCode, $searchNormalizedOrderCode) {
@@ -287,6 +295,16 @@ class EmpaqueController extends Controller
             $order->date = Carbon::parse($order->date)->format('Y-m-d H:i:s');
         }
 
+        // 🎯 Sincronizar LOTE desde Validación Tanque si está autorizado
+        // Prioridad: Reconexión Autorizada > Validación Inicial Autorizada > Valor actual (API/Mix)
+        if ($validacion) {
+            if ($validacion->reconexion_estado == 3 && !empty($validacion->reconexion_lote)) {
+                $order->lot_num = $validacion->reconexion_lote;
+            } elseif ($validacion->estado == 3 && !empty($validacion->lote)) {
+                $order->lot_num = $validacion->lote;
+            }
+        }
+
         // Manejar los materiales correctamente sin modificar indirectamente
         // Si $order->empaqueMaterials es una colección Eloquent, la convertimos a array primero
         $rawMaterials = $order->empaqueMaterials ?? $order->materials ?? [];
@@ -305,11 +323,18 @@ class EmpaqueController extends Controller
             if (!isset($material->process) || $material->process === null) {
                 $material->process = 'Empaque'; // Asignar valor por defecto
             }
+
+            // Si viene de la API, el campo se llama 'tipo_prod' según el ejemplo.
+            // Si viene de la DB local, ahora también se llama 'tipo_prod'.
+            if (!isset($material->tipo_prod) && isset($material->tipo_prod)) {
+                 // Esto es redundante pero asegura que el objeto stdClass lo tenga
+            }
+            
             return $material;
         })->values()->all();
 
         // -----------------------------------------------------------
-        // 🔍 Lógica para buscar Orden de Mezcla y asignar real_performance
+        // 🔍 Lógica para buscar Orden de Mezcla y asignar real_performance + lote
         // -----------------------------------------------------------
         
         // 1. Calcular código de mezcla (-10 -> -20)
@@ -318,56 +343,43 @@ class EmpaqueController extends Controller
             $mixOrderCode = preg_replace('/-10$/', '-20', $normalizedOrderCode);
         }
 
-        if ($salida["data"]["origin"] === "API") {
-
-            // -----------------------------------------------------------
-            // 🔍 Lógica para buscar Orden de Mezcla y asignar real_performance
-            // -----------------------------------------------------------
+        if ($mixOrderCode) {
+            \Log::info("Buscando MixOrder variante: {$mixOrderCode} (Original: {$normalizedOrderCode})");
             
-            // 1. Calcular código de mezcla (-10 -> -20)
-            $mixOrderCode = null;
-            if (preg_match('/-10$/', $normalizedOrderCode)) {
-                $mixOrderCode = preg_replace('/-10$/', '-20', $normalizedOrderCode);
-            }
+            $mixOrder = MixOrder::whereRaw("REPLACE(num_id, ' ', '') = ?", [$mixOrderCode])->first();
+            
+            if ($mixOrder) {
+                // Siempre asignar el lote de la orden de mezcla al registro principal de la orden de empaque actual
+                $order->lot_num = $mixOrder->lot_num ?? null;
 
-            if ($mixOrderCode) {
-                // 2. Buscar en MixOrder (ignorando espacios con REPLACE si es SQL raw, o normalizando)
-                \Log::info("Buscando MixOrder variante: {$mixOrderCode} (Original: {$normalizedOrderCode})");
+                \Log::info("MixOrder encontrada. ID: {$mixOrder->id}, RealPerformance: " . ($mixOrder->real_performance ?? 'NULL'));
                 
-                // Usamos modelo MixOrder
-                $mixOrder = MixOrder::whereRaw("REPLACE(num_id, ' ', '') = ?", [$mixOrderCode])->first();
-                
-                if ($mixOrder) {
-                    \Log::info("MixOrder encontrada. ID: {$mixOrder->id}, RealPerformance: " . ($mixOrder->real_performance ?? 'NULL'));
-                    
-                    if (!empty($mixOrder->real_performance)) {
-                        // 3. Obtener real_performance
-                        $realPerformance = $mixOrder->real_performance;
+                // Asignar el lote del bulk y el rendimiento real al material COSTEO
+                foreach ($materials as $key => $mat) {
+                    $processDB = strtoupper($mat->process ?? '');
+                    $processAPI = strtoupper($mat->proceso ?? '');
 
-                        // 4. Asignar al material COSTEO
-                        foreach ($materials as $key => $mat) {
-                            // Validar campo 'proceso' (API) o 'process' (DB)
-                            // La API puede devolver 'proceso': 'COSTEO' y 'process': 'Empaque' simultáneamente.
-                            // Damos prioridad si alguno dice COSTEO.
-                            $processDB = strtoupper($mat->process ?? '');
-                            $processAPI = strtoupper($mat->proceso ?? '');
-                            
-                            // \Log::info("Revisando material {$key}: ProcessDB={$processDB}, ProcessAPI={$processAPI}");
-
-                            if ($processDB === 'COSTEO' || $processAPI === 'COSTEO') {
-                                \Log::info("Asignando real_performance {$realPerformance} a material index {$key} (COSTEO)");
-                                $materials[$key]->lot1 = $realPerformance;
-                                // Opcional: break si solo es uno
-                                break; 
-                            }
+                    if ($processDB === 'COSTEO' || $processAPI === 'COSTEO') {
+                        // Asignamos el lote de la orden de mezcla en lote 1 del material (Columna LOTE)
+                        if (!empty($mixOrder->lot_num)) {
+                            \Log::info("Asignando lot_num {$mixOrder->lot_num} a material index {$key} (COSTEO) en lot1");
+                            $materials[$key]->lot1 = $mixOrder->lot_num;
                         }
+
+                        // Asignar rendimiento en primera entrega
+                        if (!empty($mixOrder->real_performance)) {
+                            $realPerformance = $mixOrder->real_performance;
+                            \Log::info("Asignando real_performance {$realPerformance} a material index {$key} (COSTEO) en entrega1");
+                            $materials[$key]->entrega1 = $realPerformance;
+                        }
+                        break; 
                     }
-                } else {
-                    \Log::warning("MixOrder NO encontrada para código: {$mixOrderCode}");
                 }
+            } else {
+                \Log::warning("MixOrder NO encontrada para código: {$mixOrderCode}");
             }
-            // -----------------------------------------------------------
         }
+        // -----------------------------------------------------------
 
         // Asignar materiales modificados al objeto/modelo como propiedad dinámica 'materials'
         // (para mantener compatibilidad con el frontend que espera 'materials')
@@ -394,7 +406,8 @@ class EmpaqueController extends Controller
         ];
 
         if (!Auth::user()->hasRole("Bodega") && !Auth::user()->hasRole("SupCalidad") &&
-            !Auth::user()->hasRole("Produccion") && !Auth::user()->hasRole("AuxControlCalidad")) {
+            !Auth::user()->hasRole("Produccion") && !Auth::user()->hasRole("AuxControlCalidad") &&
+            !Auth::user()->hasRole("Bodega PT")) {
             $salida["msg"] = "Operación denegada";
             return $salida;
         }
@@ -457,7 +470,10 @@ class EmpaqueController extends Controller
             //     $order->user_recibe = session('user_cur_fullname');
             // }
 
-            $order->status = 2; // pendiente de aprobación
+            // Solo cambiar a status 2 si la orden no está ya en un estado avanzado (3=autorizada, 4=finalizada)
+            if ($order->status < 3) {
+                $order->status = 2; // pendiente de aprobación
+            }
 
             // ========================================
             // 🔹 FUSIONAR TIMES (mantener datos previos)
@@ -539,6 +555,7 @@ class EmpaqueController extends Controller
 
                 $mats->code = $target->code;
                 $mats->description = $target->description;
+                $mats->tipo_prod = $target->tipo_prod ?? null;
                 $mats->process = $target->process;
                 $mats->required_amount = $target->required_amount;
                 $mats->unit = $target->unit;
@@ -734,7 +751,8 @@ class EmpaqueController extends Controller
         $validator = Validator::make($request->all(), [
             "times" => "required|json",
             "operarios" => "required|json",
-            "entregas" => "required|json"
+            "entregas" => "required|json",
+            "materials" => "nullable|json"
         ]);
 
         if ($validator->fails()) {
@@ -881,6 +899,31 @@ class EmpaqueController extends Controller
                 $order->observations,
                 (string)$request->observations
             );
+        }
+
+        // ========================================
+        // 🔹 ACTUALIZAR MATERIALES (incluyendo Devoluciones)
+        // ========================================
+        if ($request->filled('materials')) {
+            $materials = json_decode($request->materials, true);
+            if (is_array($materials)) {
+                foreach ($materials as $target) {
+                    $target = (object)$target;
+                    // Solo actualizar si existe el material_id
+                    if (isset($target->material_id) && $target->material_id != 0) {
+                        $mats = \App\EmpaqueMaterial::find($target->material_id);
+                        if ($mats) {
+                            // Actualizar solo los campos que Producción puede modificar o que vienen del frontend
+                            $mats->lot1 = $target->lot1 ?? $mats->lot1;
+                            $mats->entrega1 = $target->entrega1 ?? $mats->entrega1;
+                            $mats->entrega2 = $target->entrega2 ?? $mats->entrega2;
+                            $mats->return = $target->return ?? $mats->return;
+                            $mats->tipo_prod = $target->tipo_prod ?? $mats->tipo_prod;
+                            $mats->save();
+                        }
+                    }
+                }
+            }
         }
 
         if (!$order->save()) {
@@ -1217,7 +1260,7 @@ class EmpaqueController extends Controller
             "data" => null
         ];
 
-        if (!Auth::user()->hasRole("SupCalidad") && !Auth::user()->hasRole("Produccion") && !Auth::user()->hasRole("AuxControlCalidad")) {
+        if (!Auth::user()->hasRole("SupCalidad") && !Auth::user()->hasRole("Produccion") && !Auth::user()->hasRole("AuxControlCalidad") && !Auth::user()->hasRole("Bodega PT")) {
             $salida["msg"] = "Operación denegada";
             return $salida;
         }
@@ -1254,31 +1297,63 @@ class EmpaqueController extends Controller
         \Log::info("   [searchDB] Lot_num actual: " . ($order->lot_num ?? 'NULL'));
 
         // Validar si la orden de PACKING tiene status 2 y lot_num vacío
-        if ($order->status == 2) {
-            // Verificar si lot_num en la orden de packing está vacío
-            $packingLotEmpty = !isset($order->lot_num) || $order->lot_num === '' || $order->lot_num === null;
+        if ($order->status == 2 || $order->status == 3) {
+            $lotNum = $order->lot_num; // Valor por defecto
             
-            \Log::info("✅ [searchDB] Orden tiene status 2. Lot_num vacío: " . ($packingLotEmpty ? "SÍ" : "NO"));
-            
-            if ($packingLotEmpty) {
-                // Buscar en mix_orders
-                if ($mixQuery && isset($mixQuery->lot_num) && $mixQuery->lot_num !== '') {
-                    $lotNum = $mixQuery->lot_num;
-                    \Log::info("✅ [searchDB] Asignando lot_num de mix_orders: {$lotNum}");
-                } else {
-                    // Si no existe en mix_orders, está pendiente de recibir
-                    $lotNum = 'Pendiente de recibir';
-                    \Log::info("⚠️ [searchDB] No hay lot_num en mix_orders, asignando: Pendiente de recibir");
-                }
+            // Prioridad 1: Siempre tomamos el número de lote de la orden de mezcla si existe
+            if ($mixQuery && !empty($mixQuery->lot_num)) {
+                $lotNum = $mixQuery->lot_num;
+                \Log::info("✅ [searchDB] Asignando lot_num de MixOrder: {$lotNum}");
             } else {
-                // Si ya tiene lot_num en packing, mantenerlo
-                $lotNum = $order->lot_num;
-                \Log::info("ℹ️ [searchDB] Manteniendo lot_num existente: {$lotNum}");
+                // 🎯 Prioridad 2: Sincronizar LOTE desde Validación Tanque si hay uno autorizado y NO hay mix
+                $vt = ValidacionTanque::whereRaw("REPLACE(numero_orden, ' ', '') = ?", [$normalizedOrderCode])->first();
+                if ($vt) {
+                    if ($vt->reconexion_estado == 3 && !empty($vt->reconexion_lote)) {
+                        $lotNum = $vt->reconexion_lote;
+                        \Log::info("✅ [searchDB] Asignando lot_num de reconexión autorizada: {$lotNum}");
+                    } elseif ($vt->estado == 3 && !empty($vt->lote)) {
+                        if (empty($order->lot_num) || $order->lot_num === 'Pendiente de recibir') {
+                             $lotNum = $vt->lote;
+                             \Log::info("✅ [searchDB] Asignando lot_num de validación inicial: {$lotNum}");
+                        }
+                    }
+                }
             }
-            
+
             // Sobrescribir el lot_num
             $order->lot_num = $lotNum;
             \Log::info("🎯 [searchDB] Lot_num final asignado: " . ($lotNum ?? 'NULL'));
+        }
+
+        // -----------------------------------------------------------
+        // 🔍 Asignar real_performance y lote de MixOrder a entrega1 / lot1 si aplica
+        // -----------------------------------------------------------
+        if ($mixQuery) {
+            $realPerformance = $mixQuery->real_performance;
+            $mixLotNum = $mixQuery->lot_num;
+            
+            // Recorrer los materiales recién cargados
+            foreach ($order->empaqueMaterials as $mat) {
+                $processDB = strtoupper($mat->process ?? '');
+                
+                if ($processDB === 'COSTEO') {
+                    // Asignar lote a lot1 (LOTE COLUMN)
+                    if (!empty($mixLotNum)) {
+                        if (empty($mat->lot1) || $order->status < 4) {
+                            $mat->lot1 = $mixLotNum;
+                            \Log::info("✅ [searchDB] Inyectando lot_num ({$mixLotNum}) en lot1 de material ID: {$mat->id}");
+                        }
+                    }
+
+                    // Asignar performance a entrega1 (PRIMERA ENTREGA)
+                    if (!empty($realPerformance)) {
+                        if (empty($mat->entrega1) || $order->status < 4) {
+                            $mat->entrega1 = $realPerformance;
+                            \Log::info("✅ [searchDB] Inyectando real_performance ({$realPerformance}) en entrega1 de material ID: {$mat->id}");
+                        }
+                    }
+                }
+            }
         }
 
         $salida["code"] = 1;

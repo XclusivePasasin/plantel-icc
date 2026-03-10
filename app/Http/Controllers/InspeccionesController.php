@@ -27,15 +27,21 @@ class InspeccionesController extends Controller
         $originalOrderCode = trim($order_code);
         $normalizedOrderCode = preg_replace('/\s+/', '', $order_code);
 
-        // 1️⃣ Validar existencia de tanque autorizado
-        $validacion = ValidacionTanque::whereRaw("REPLACE(numero_orden, ' ', '') = ?", [$normalizedOrderCode])
-            ->where('estado', 3)
-            ->first();
+        // 1️⃣ Validar existencia de tanque autorizado y que la reconexión (si existe) también esté autorizada
+        $validacion = ValidacionTanque::whereRaw("REPLACE(numero_orden, ' ', '') = ?", [$normalizedOrderCode])->first();
 
-        if (!$validacion) {
+        if (!$validacion || $validacion->estado != 3) {
             return response()->json([
                 "code" => 0,
                 "msg"  => "⚠️ La orden no ha sido autorizada en el módulo de tanque. Debe completar la validación primero."
+            ]);
+        }
+
+        // ❌ Bloqueo si hay una reconexión en curso pero no autorizada
+        if ($validacion->reconexion_estado > 0 && $validacion->reconexion_estado < 3) {
+            return response()->json([
+                "code" => 0,
+                "msg"  => "⚠️ Hay una RECONEXIÓN pendiente de autorizar por Control de Calidad. Bloqueado hasta que se complete el flujo."
             ]);
         }
 
@@ -47,7 +53,28 @@ class InspeccionesController extends Controller
 
         $inspeccion = $salida['data']['inspecciones'] ?? null;
 
-        // 🧩 Si ya existe una inspección guardada en BD → devolver tal cual
+        // 🔥 OBTENER CONSUMO DE BOBINA DINÁMICAMENTE DESDE EMPAQUE
+        $consumoBobina = 0;
+        $orderModel = Packing::whereRaw("REPLACE(num_id, ' ', '') = ?", [$normalizedOrderCode])
+                            ->with('empaqueMaterials')
+                            ->first();
+        if ($orderModel) {
+            foreach ($orderModel->empaqueMaterials as $mat) {
+                if (isset($mat->tipo_prod) && strtolower(trim($mat->tipo_prod)) === 'bobina') {
+                    $entrega1 = floatval($mat->entrega1 ?? 0);
+                    $entrega2 = floatval($mat->entrega2 ?? 0);
+                    $devolucion = floatval($mat->return ?? 0);
+                    $consumoBobina = ($entrega1 + $entrega2) - $devolucion;
+                    break;
+                }
+            }
+        }
+        
+        if (isset($salida['data']['inspecciones'])) {
+            $salida['data']['inspecciones']['consumobobina'] = $consumoBobina;
+        }
+
+        // 🧩 Si ya existe una inspección guardada en BD → devolver tal cual (con el consumo calculado sobrescrito en RAM para mostrarlo real-time)
         if ($inspeccion && !empty($inspeccion['id'])) {
             $salida["data"]["tanque"] = $validacion;
             return response()->json($salida);
