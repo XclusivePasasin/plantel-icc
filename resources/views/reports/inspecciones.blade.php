@@ -218,12 +218,24 @@
     <tr><th>=</th><td>{{ $data->inspecciones->ptotal  }}</td></tr>
   </table>
 
-  <div class="lote">
-    <strong>RENDIMIENTO DE MEZCLA:</strong> {{ number_format($data->inspecciones->rendimientomezcla, 2) }}
+  <div class="lote" style="font-size: 14px;">
+    <strong>RENDIMIENTO DE MEZCLA:</strong>&nbsp;&nbsp;&nbsp;
+    <span>{{ $data->inspecciones->ptotal ?? 0 }}</span>
+    &nbsp;&nbsp;X&nbsp;&nbsp;
+    <span>100</span>
+    &nbsp;&nbsp;/&nbsp;&nbsp;
+    <span>{{ $data->inspecciones->capacidad ?? 0 }}</span>
+    &nbsp;&nbsp;=&nbsp;&nbsp;
+    <span>{{ $data->inspecciones->rendimientomezcla ? number_format($data->inspecciones->rendimientomezcla, 2) : '0.00' }}</span> &nbsp;%
   </div>
 
   <div class="lote">
-    <strong>CONSUMO DE BOBINA:</strong> <span>{{ $data->inspecciones->consumobobina }}</span>
+    <strong>CONSUMO DE BOBINA:</strong>
+    @if($bobina)
+      ({{ number_format($bobina['entrega1'], 2) }} + {{ number_format($bobina['entrega2'], 2) }}) - {{ number_format($bobina['devolucion'], 2) }} = <strong>{{ number_format($bobina['consumo'], 2) }}</strong>
+    @else
+      <span>{{ $data->inspecciones->consumobobina }}</span>
+    @endif
   </div>
 
 </body>

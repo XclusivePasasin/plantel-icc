@@ -376,6 +376,18 @@ export function finishPacking(order_id, data) {
     })
 }
 
+export function entregarDevolucionPacking(order_id) {
+    return axios.post(`/packing/order/entregar-devolucion/${order_id}`);
+}
+
+export function recibirDevolucionPacking(order_id) {
+    return axios.post(`/packing/order/recibir-devolucion/${order_id}`);
+}
+
+export function saveReturnReceiptPacking(order_id, data) {
+    return axios.post(`/packing/order/save-return-receipt/${order_id}`, data);
+}
+
 
 
 

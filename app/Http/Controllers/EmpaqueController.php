@@ -95,7 +95,9 @@ class EmpaqueController extends Controller
 
                 // ✅ Verificar si el turno ya completó 25 campos válidos
                 $atributos = collect($con->getAttributes());
-                $camposLlenos = $atributos->filter(fn($v, $k) => !is_null($v) && $k !== 'id' && $k !== 'turno' && $k !== 'created_at' && $k !== 'updated_at');
+                $camposLlenos = $atributos->filter(function($v, $k) {
+                    return !is_null($v) && $k !== 'id' && $k !== 'turno' && $k !== 'created_at' && $k !== 'updated_at';
+                });
 
                 if ($camposLlenos->count() >= 25) {
                     $data["controles"]["msgs"] .= "✔️ Proceso completado para turno $con->turno (25 campos llenos)\n";
@@ -349,8 +351,11 @@ class EmpaqueController extends Controller
             $mixOrder = MixOrder::whereRaw("REPLACE(num_id, ' ', '') = ?", [$mixOrderCode])->first();
             
             if ($mixOrder) {
-                // Siempre asignar el lote de la orden de mezcla al registro principal de la orden de empaque actual
-                $order->lot_num = $mixOrder->lot_num ?? null;
+                // Solo asignar lote si está vacío o es pendiente
+                if (empty($order->lot_num) || $order->lot_num === 'Pendiente de recibir') {
+                    $order->lot_num = $mixOrder->lot_num ?? null;
+                    \Log::info("Asignando lot_num de MixOrder a la orden principal porque estaba vacío");
+                }
 
                 \Log::info("MixOrder encontrada. ID: {$mixOrder->id}, RealPerformance: " . ($mixOrder->real_performance ?? 'NULL'));
                 
@@ -361,13 +366,13 @@ class EmpaqueController extends Controller
 
                     if ($processDB === 'COSTEO' || $processAPI === 'COSTEO') {
                         // Asignamos el lote de la orden de mezcla en lote 1 del material (Columna LOTE)
-                        if (!empty($mixOrder->lot_num)) {
+                        if (!empty($mixOrder->lot_num) && empty($materials[$key]->lot1)) {
                             \Log::info("Asignando lot_num {$mixOrder->lot_num} a material index {$key} (COSTEO) en lot1");
                             $materials[$key]->lot1 = $mixOrder->lot_num;
                         }
 
                         // Asignar rendimiento en primera entrega
-                        if (!empty($mixOrder->real_performance)) {
+                        if (!empty($mixOrder->real_performance) && empty($materials[$key]->entrega1)) {
                             $realPerformance = $mixOrder->real_performance;
                             \Log::info("Asignando real_performance {$realPerformance} a material index {$key} (COSTEO) en entrega1");
                             $materials[$key]->entrega1 = $realPerformance;
@@ -405,6 +410,8 @@ class EmpaqueController extends Controller
             "data" => null
         ];
 
+        \Log::info(">>> LLAMADA A SAVE_OR_UPDATE por: " . Auth::user()->user_fullname . " Orden: " . $request->num_id);
+
         if (!Auth::user()->hasRole("Bodega") && !Auth::user()->hasRole("SupCalidad") &&
             !Auth::user()->hasRole("Produccion") && !Auth::user()->hasRole("AuxControlCalidad") &&
             !Auth::user()->hasRole("Bodega PT")) {
@@ -419,6 +426,7 @@ class EmpaqueController extends Controller
             "product_name" => "required",
             "lot_size" => "required|numeric",
             "total_units" => "required|numeric|min:0",
+            "recepcion_retorno_json" => "nullable"
         ]);
 
         if ($validator->fails()) {
@@ -527,6 +535,10 @@ class EmpaqueController extends Controller
                 if (isset($existingEntregas[$index])) {
                     // Fusionar: solo sobrescribir si el nuevo valor no está vacío
                     foreach ($newEntrega as $key => $value) {
+                        if ($key === 'firma_bodegapt') {
+                            $existingEntregas[$index][$key] = $value;
+                            continue;
+                        }
                         if (!empty($value) || $value === 0) {
                             $existingEntregas[$index][$key] = $value;
                         }
@@ -538,9 +550,15 @@ class EmpaqueController extends Controller
             }
             $order->entregas = json_encode($existingEntregas);
 
+            if ($request->has('recepcion_retorno_json')) {
+                $val = $request->recepcion_retorno_json;
+                $order->recepcion_retorno_json = is_array($val) || is_object($val) ? json_encode($val) : $val;
+            }
+
             $order->save();
 
             // Guardar materiales
+            \Log::info(">>> MATERIALES RECIBIDOS: " . json_encode($request->materials));
             $material_passed = 0;
             while ($material_passed < $materials_count) {
                 $target = (object)$request->materials[$material_passed];
@@ -564,7 +582,18 @@ class EmpaqueController extends Controller
                 $mats->lot1 = $target->lot1;
                 $mats->entrega1 = $target->entrega1;
                 $mats->entrega2 = $target->entrega2;
-                $mats->return = $target->return;
+                
+                \Log::info("UPDATE MATERIAL ID: {$mats->id} COSTEO? {$target->process} LOTE_SENT: '{$target->lot1}' LOTE_DB: '{$mats->lot1}'");
+                
+                $isCosteo = false;
+                if (isset($target->process) && strtoupper(trim($target->process)) === 'COSTEO') {
+                    $isCosteo = true;
+                }
+                
+                $returnVal = $isCosteo ? null : ($target->return ?? null);
+
+                // Sanitizar return: cadena vacía '' => null (MySQL rechaza '' en columna INTEGER)
+                $mats->return = ($returnVal !== null && $returnVal !== '') ? $returnVal : null;
                 $mats->packing_id = $order->id;
                 $mats->save();
                 $material_passed++;
@@ -605,10 +634,10 @@ class EmpaqueController extends Controller
         $incomingFullText = str_replace("\r\n", "\n", trim($incomingFullText));
 
         $existingLines = $existing !== '' ? preg_split('/\n+/', $existing) : [];
-        $existingLines = array_values(array_filter(array_map('trim', $existingLines), fn($l) => $l !== ''));
+        $existingLines = array_values(array_filter(array_map('trim', $existingLines), function($l) { return $l !== ''; }));
 
         $incomingLines = $incomingFullText !== '' ? preg_split('/\n+/', $incomingFullText) : [];
-        $incomingLines = array_values(array_filter(array_map('trim', $incomingLines), fn($l) => $l !== ''));
+        $incomingLines = array_values(array_filter(array_map('trim', $incomingLines), function($l) { return $l !== ''; }));
 
         $result = [];
         $max = count($incomingLines);
@@ -752,7 +781,8 @@ class EmpaqueController extends Controller
             "times" => "required|json",
             "operarios" => "required|json",
             "entregas" => "required|json",
-            "materials" => "nullable|json"
+            "materials" => "nullable|json",
+            "recepcion_retorno_json" => "nullable"
         ]);
 
         if ($validator->fails()) {
@@ -848,10 +878,13 @@ class EmpaqueController extends Controller
                         if (!empty($existingEntregas[$index]['recibe'])) {
                             continue;
                         }
-                        // Si el valor enviado desde el frontend no está vacío, usarlo
                         if (!empty($value) || $value === 0) {
                             $existingEntregas[$index][$key] = $value;
                         }
+                        continue;
+                    }
+                    if ($key === 'firma_bodegapt') { // update firma_bodegapt unconditionally if sent from front
+                        $existingEntregas[$index][$key] = $value;
                         continue;
                     }
                     if ((!isset($existingEntregas[$index][$key]) || 
@@ -886,6 +919,11 @@ class EmpaqueController extends Controller
         $order->operarios = json_encode($existingOperarios);
         $order->entregas = json_encode($existingEntregas);
 
+        if ($request->has('recepcion_retorno_json')) {
+            $val = $request->recepcion_retorno_json;
+            $order->recepcion_retorno_json = is_array($val) || is_object($val) ? json_encode($val) : $val;
+        }
+
         if ($request->performance_teorico != null) {
             $order->performance_teorico = $request->performance_teorico;
         }
@@ -917,8 +955,16 @@ class EmpaqueController extends Controller
                             $mats->lot1 = $target->lot1 ?? $mats->lot1;
                             $mats->entrega1 = $target->entrega1 ?? $mats->entrega1;
                             $mats->entrega2 = $target->entrega2 ?? $mats->entrega2;
-                            $mats->return = $target->return ?? $mats->return;
                             $mats->tipo_prod = $target->tipo_prod ?? $mats->tipo_prod;
+                            
+                            $isCosteo = false;
+                            if (isset($mats->process) && strtoupper(trim($mats->process)) === 'COSTEO') {
+                                $isCosteo = true;
+                            }
+                            
+                            $returnVal = $isCosteo ? null : ($target->return ?? null);
+                            // Sanitizar return: cadena vacía '' => null (MySQL rechaza '' en columna INTEGER)
+                            $mats->return = ($returnVal !== null && $returnVal !== '') ? $returnVal : null;
                             $mats->save();
                         }
                     }
@@ -1162,7 +1208,7 @@ class EmpaqueController extends Controller
     $lines = [];
     if ($existing !== '') {
         $lines = preg_split('/\n+/', $existing);
-        $lines = array_values(array_filter(array_map('trim', $lines), fn($l) => $l !== ''));
+        $lines = array_values(array_filter(array_map('trim', $lines), function($l) { return $l !== ''; }));
     }
 
     // No duplicar EXACTO (misma línea completa)
@@ -1224,9 +1270,10 @@ class EmpaqueController extends Controller
             return $salida;
         }
 
+        // 🚫 Validaciones de devoluciones individuales ya suceden en el frontend.
+        // Se omite la validación global antigua de $order->devolucion_recibida.
+        
         $order->performance_teorico = $request->performance_teorico;
-        // $order->performance = $request->performance;
-        // $order->observations = $request->observations;
         if ($request->filled('observations')) {
             $order->observations = $this->appendPackingBitacora(
                 $order->observations,
@@ -1234,7 +1281,6 @@ class EmpaqueController extends Controller
             );
         }
 
-        // $order->user_recibe = session('user_cur_fullname');
         $order->status = 4;
 
         if(!$order->save()){
@@ -1249,6 +1295,125 @@ class EmpaqueController extends Controller
         $salida["msg"] = "Processed Successfully";
         $salida["data"] = $order;
 
+        return $salida;
+    }
+
+    /**
+     * Producción marca que entregó devoluciones de materiales (opcional).
+     * Solo disponible cuando la orden está autorizada (status = 3) y no finalizada.
+     */
+    public function entregarDevolucion(Request $request, $id)
+    {
+        $salida = ["code" => 0, "msg" => "", "data" => null];
+
+        if (!Auth::user()->hasRole("Produccion")) {
+            $salida["msg"] = "Operación denegada";
+            return $salida;
+        }
+
+        $order = Packing::find($id);
+        if (!$order) {
+            $salida["msg"] = "No se encontró la orden";
+            return $salida;
+        }
+
+        if ($order->status != 3) {
+            $salida["msg"] = "La orden no está en estado autorizado";
+            return $salida;
+        }
+
+        $order->devolucion_entregada     = 1;
+        $order->user_entrega_devolucion  = session('user_cur_fullname') ?? Auth::user()->name;
+        $order->save();
+
+        $order->refresh();
+        $order->load('empaqueMaterials');
+
+        $salida["code"] = 1;
+        $salida["msg"]  = "Devolución registrada como entregada";
+        $salida["data"] = $order;
+        return $salida;
+    }
+
+    /**
+     * Bodega PT marca que recibió las devoluciones (opcional).
+     * Solo disponible cuando devolucion_entregada = 1 y la orden está en status = 3.
+     */
+    public function recibirDevolucion(Request $request, $id)
+    {
+        $salida = ["code" => 0, "msg" => "", "data" => null];
+
+        if (!Auth::user()->hasRole("Bodega") && !Auth::user()->hasRole("Bodega PT")) {
+            $salida["msg"] = "Operación denegada";
+            return $salida;
+        }
+
+        $order = Packing::find($id);
+        if (!$order) {
+            $salida["msg"] = "No se encontró la orden";
+            return $salida;
+        }
+
+        if ($order->status != 3) {
+            $salida["msg"] = "La orden no está en estado autorizado";
+            return $salida;
+        }
+
+        if (!$order->devolucion_entregada) {
+            $salida["msg"] = "Aún no se ha registrado la entrega de devoluciones";
+            return $salida;
+        }
+
+        $currentUser = session('user_cur_fullname') ?? Auth::user()->name;
+
+        $order->devolucion_entregada = 0; // Reset para permitir n entregas
+        $order->devolucion_recibida  = 0; // Marcador global reseteado
+
+        // Eliminado la lógica que almacenaba historial de nombres separados por comas
+        // Ya que la orden individual guarda la firma del recepcionista
+
+        $order->save();
+
+        $order->refresh();
+        $order->load('empaqueMaterials');
+
+        $salida["code"] = 1;
+        $salida["msg"]  = "Devolución registrada como recibida";
+        $salida["data"] = $order;
+        return $salida;
+    }
+
+    public function saveReturnReceipt(Request $request, $id)
+    {
+        $salida = ["code" => 0, "msg" => "", "data" => null];
+
+        // Validar permisos
+        if (!Auth::user()->hasRole("Bodega") && !Auth::user()->hasRole("Bodega PT") && !Auth::user()->hasRole("Produccion")) {
+            $salida["msg"] = "Operación denegada";
+            return $salida;
+        }
+
+        $order = Packing::find($id);
+        if (!$order) {
+            $salida["msg"] = "No se encontró la orden";
+            return $salida;
+        }
+
+        if ($request->has('recepcion_retorno_json')) {
+            $val = $request->recepcion_retorno_json;
+            $order->recepcion_retorno_json = is_array($val) || is_object($val) ? json_encode($val) : $val;
+            \Log::info("Saving return receipt for order {$id}: " . $order->recepcion_retorno_json);
+            $order->save();
+        }
+        
+        \Log::info("Order {$id} saved. Current field value: " . $order->recepcion_retorno_json);
+
+        $order->refresh();
+        $order->load('empaqueMaterials');
+
+        $salida["code"] = 1;
+        $salida["msg"] = "Processed Successfully";
+        $salida["data"] = $order;
         return $salida;
     }
 
@@ -1300,10 +1465,14 @@ class EmpaqueController extends Controller
         if ($order->status == 2 || $order->status == 3) {
             $lotNum = $order->lot_num; // Valor por defecto
             
-            // Prioridad 1: Siempre tomamos el número de lote de la orden de mezcla si existe
+            // Prioridad 1: Tomamos el número de lote de la orden de mezcla si existe y el actual está vacío
             if ($mixQuery && !empty($mixQuery->lot_num)) {
-                $lotNum = $mixQuery->lot_num;
-                \Log::info("✅ [searchDB] Asignando lot_num de MixOrder: {$lotNum}");
+                if (empty($order->lot_num) || $order->lot_num === 'Pendiente de recibir') {
+                    $lotNum = $mixQuery->lot_num;
+                    \Log::info("✅ [searchDB] Asignando lot_num de MixOrder: {$lotNum} (Estaba vacío o pendiente)");
+                } else {
+                    \Log::info("ℹ️ [searchDB] Manteniendo lot_num manual de la orden: {$order->lot_num}");
+                }
             } else {
                 // 🎯 Prioridad 2: Sincronizar LOTE desde Validación Tanque si hay uno autorizado y NO hay mix
                 $vt = ValidacionTanque::whereRaw("REPLACE(numero_orden, ' ', '') = ?", [$normalizedOrderCode])->first();
@@ -1339,7 +1508,7 @@ class EmpaqueController extends Controller
                 if ($processDB === 'COSTEO') {
                     // Asignar lote a lot1 (LOTE COLUMN)
                     if (!empty($mixLotNum)) {
-                        if (empty($mat->lot1) || $order->status < 4) {
+                        if (empty($mat->lot1)) {
                             $mat->lot1 = $mixLotNum;
                             \Log::info("✅ [searchDB] Inyectando lot_num ({$mixLotNum}) en lot1 de material ID: {$mat->id}");
                         }
@@ -1347,7 +1516,7 @@ class EmpaqueController extends Controller
 
                     // Asignar performance a entrega1 (PRIMERA ENTREGA)
                     if (!empty($realPerformance)) {
-                        if (empty($mat->entrega1) || $order->status < 4) {
+                        if (empty($mat->entrega1)) {
                             $mat->entrega1 = $realPerformance;
                             \Log::info("✅ [searchDB] Inyectando real_performance ({$realPerformance}) en entrega1 de material ID: {$mat->id}");
                         }

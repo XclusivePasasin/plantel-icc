@@ -260,7 +260,6 @@
                         (has_cap('cap-supcalidad') ||
                             has_cap('cap-auxcontrol-calidad') ||
                             has_cap('cap-jefecontrol-calidad') ||
-                            has_cap('cap-calidad') ||
                             has_cap('cap-muestreo')) &&
                         estado === 1
                     "
@@ -458,7 +457,7 @@ export default {
         },
         puedeEditarCalidadVisual() {
             // Analista puede editar cuando estado es null
-            if ((this.estado === null) && (this.has_cap('cap-calidad') || this.has_cap('cap-auxcontrol-calidad') || this.has_cap('cap-jefecontrol-calidad'))) {
+            if ((this.estado === null) && (this.has_cap('cap-auxcontrol-calidad') || this.has_cap('cap-jefecontrol-calidad'))) {
                 return true;
             }
             // Jefe Control Calidad puede editar cuando estado es 2 y está en modo edición

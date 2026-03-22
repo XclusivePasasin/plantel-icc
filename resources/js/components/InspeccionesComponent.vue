@@ -526,7 +526,7 @@
                                 <button type="button" v-if="data[0].inspecciones.estado == 5" class="btn btn-dark" @click="generatedReport"><i class="bi bi-file-earmark-pdf"></i> Generar Reporte</button>
                                 <button
                                   type="button"
-                                  :disabled="data[0].inspecciones.estado != 0 && data[0].inspecciones.estado != 2"
+                                  :disabled="(data[0].inspecciones.estado != 0 && data[0].inspecciones.estado != 2) || isSaving"
                                   v-if="data[0].user.rolname=='PROD'"
                                   @click="saveOrUpdate"
                                   class="btn btn-success"
@@ -562,6 +562,7 @@ export default {
       reporte:false,
       porcentaje: 100,
       capacidad: 0,
+      isSaving: false,
       FLAGS: {
         PACKING_AUTORIZED: 3,
         PACKING_FINALIZED: 4
@@ -730,6 +731,8 @@ export default {
 
             saveOrUpdate: async function(){
 
+                if (this.isSaving) return;
+
                 var data = {
                     num_id : this.data[0].order.num_id,
                     packing_id : this.data[0].order.id,
@@ -780,11 +783,13 @@ export default {
                 const confirm = await StatusHandler.Confirm("¿Desea realizar esta acción?");
                 if (!confirm) return;
 
+                this.isSaving = true;
                 StatusHandler.LShow();
 
                 upsertInspecciones(data).then(result=>{
                     let response = result.data;
                     if(response.code == 0){
+                        this.isSaving = false;
                         StatusHandler.ShowStatus(response.msg,StatusHandler.OPERATION.DEFAULT,StatusHandler.STATUS.FAIL);
                         return;
                     }else{
@@ -794,6 +799,7 @@ export default {
                     StatusHandler.LClose();
                     StatusHandler.ShowStatus("!Acción Existosa!",StatusHandler.OPERATION.CREATE,StatusHandler.STATUS.SUCCESS);
                 }).catch(ex=>{
+                    this.isSaving = false;
                     StatusHandler.LClose();
                     StatusHandler.Exception("Ocurrió un error",ex);
                 })

@@ -27,7 +27,8 @@ class MixController extends Controller
             "data" => null
         ];
 
-        $order = MixOrder::where('num_id', $order_code)->first();
+        // Búsqueda flexible ignorando espacios para evitar errores:
+        $order = MixOrder::whereRaw("REPLACE(num_id, ' ', '') = ?", [preg_replace('/\s+/', '', $order_code)])->first();
         if (!$order) {
             $salida["msg"] = "La orden no fue encontrada";
             return $salida;
@@ -72,7 +73,7 @@ class MixController extends Controller
         }
 
         // 🆕 Estado de control de producto
-        $control = ControlProducto::where('numero_orden', $order->num_id)->first();
+        $control = ControlProducto::whereRaw("REPLACE(numero_orden, ' ', '') = ?", [preg_replace('/\s+/', '', $order->num_id)])->first();
 
         if ($control) {
             switch ($control->estado) {
@@ -836,62 +837,62 @@ class MixController extends Controller
 
             try {
                 $sql = <<<SQL
-    WITH RECURSIVE cte AS (
-    -- 1. Primera línea
-    SELECT 
+WITH RECURSIVE cte AS (
+-- 1. Primera línea
+SELECT 
+    id,
+    observaciones AS full_text,
+    TRIM(SUBSTRING_INDEX(observaciones, '\n', 1)) AS linea,
+    SUBSTRING(
+        observaciones,
+        CHAR_LENGTH(SUBSTRING_INDEX(observaciones, '\n', 1)) 
+        + CASE 
+            WHEN INSTR(observaciones, '\r\n') > 0 THEN 3 
+            ELSE 2 
+          END
+    ) AS resto
+FROM mix_orders
+WHERE id = :order_id
+
+UNION ALL
+
+-- 2. Líneas siguientes
+SELECT
         id,
-        observaciones AS full_text,
-        TRIM(SUBSTRING_INDEX(observaciones, '\n', 1)) AS linea,
+        full_text,
+        TRIM(SUBSTRING_INDEX(resto, '\n', 1)) AS linea,
         SUBSTRING(
-            observaciones,
-            CHAR_LENGTH(SUBSTRING_INDEX(observaciones, '\n', 1)) 
+            resto,
+            CHAR_LENGTH(SUBSTRING_INDEX(resto, '\n', 1)) 
             + CASE 
-                WHEN INSTR(observaciones, '\r\n') > 0 THEN 3 
+                WHEN INSTR(resto, '\r\n') > 0 THEN 3 
                 ELSE 2 
-              END
+            END
         ) AS resto
-    FROM mix_orders
-    WHERE id = :order_id
-
-    UNION ALL
-
-    -- 2. Líneas siguientes
-    SELECT
-            id,
-            full_text,
-            TRIM(SUBSTRING_INDEX(resto, '\n', 1)) AS linea,
-            SUBSTRING(
-                resto,
-                CHAR_LENGTH(SUBSTRING_INDEX(resto, '\n', 1)) 
-                + CASE 
-                    WHEN INSTR(resto, '\r\n') > 0 THEN 3 
-                    ELSE 2 
-                END
-            ) AS resto
-        FROM cte
-        WHERE resto <> ''
-    )
-
-    SELECT
-        id,
-        linea,
-        DATE_FORMAT(
-            STR_TO_DATE(
-                SUBSTRING(
-                    linea,
-                    INSTR(linea, '(') + 1,
-                    INSTR(linea, ')') - INSTR(linea, '(') - 1
-                ),
-                '%Y-%m-%d %H:%i:%s'
-            ),
-            '%d%m%Y%H%i%s'
-        ) AS id_linea
     FROM cte
-    WHERE 
-        linea <> ''
-        AND INSTR(linea, '(') > 0
-        AND INSTR(linea, ')') > INSTR(linea, '(');
-    SQL;
+    WHERE resto <> ''
+)
+
+SELECT
+    id,
+    linea,
+    DATE_FORMAT(
+        STR_TO_DATE(
+            SUBSTRING(
+                linea,
+                INSTR(linea, '(') + 1,
+                INSTR(linea, ')') - INSTR(linea, '(') - 1
+            ),
+            '%Y-%m-%d %H:%i:%s'
+        ),
+        '%d%m%Y%H%i%s'
+    ) AS id_linea
+FROM cte
+WHERE 
+    linea <> ''
+    AND INSTR(linea, '(') > 0
+    AND INSTR(linea, ')') > INSTR(linea, '(');
+SQL;
 
                 $rows = DB::select($sql, [
                     'order_id' => $orderId
@@ -1615,7 +1616,7 @@ class MixController extends Controller
 
                 // 🧾 Construir bitácora unificada
                 $nuevaBitacora = collect($bitacoraExistente)
-                    ->map(fn($v, $k) => "$k: $v")
+                    ->map(function($v, $k) { return "$k: $v"; })
                     ->implode("\n");
 
                 // 🟢 Construir observaciones finales: texto manual | bitácora

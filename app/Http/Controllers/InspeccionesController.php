@@ -59,15 +59,18 @@ class InspeccionesController extends Controller
                             ->with('empaqueMaterials')
                             ->first();
         if ($orderModel) {
+            $entrega1 = 0;
+            $entrega2 = 0;
+            $devolucion = 0;
+            
             foreach ($orderModel->empaqueMaterials as $mat) {
                 if (isset($mat->tipo_prod) && strtolower(trim($mat->tipo_prod)) === 'bobina') {
-                    $entrega1 = floatval($mat->entrega1 ?? 0);
-                    $entrega2 = floatval($mat->entrega2 ?? 0);
-                    $devolucion = floatval($mat->return ?? 0);
-                    $consumoBobina = ($entrega1 + $entrega2) - $devolucion;
-                    break;
+                    $entrega1 += floatval($mat->entrega1 ?? 0);
+                    $entrega2 += floatval($mat->entrega2 ?? 0);
+                    $devolucion += floatval($mat->return ?? 0);
                 }
             }
+            $consumoBobina = ($entrega1 + $entrega2) - $devolucion;
         }
         
         if (isset($salida['data']['inspecciones'])) {

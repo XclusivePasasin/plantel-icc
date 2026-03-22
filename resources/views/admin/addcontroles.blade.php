@@ -30,7 +30,8 @@
                             <div class="col-12">
                                 <div class="card">
                                     <div class="card-body">
-                                        <h5 class="card-title">@{{ vi_control.seccion }} Columnas Verificadas | Turno @{{ vi_control.turno }}</h5>
+                                        <!-- <h5 class="card-title">@{{ vi_control.seccion }} Columnas Verificadas | Turno @{{ vi_control.turno }}</h5> -->
+                                        <h5 class="card-title">@{{ vi_control.seccion }} Columnas Verificadas</h5>
                                         <p class="card-text">Hoja de Control de Procesos, Creado @{{ vi_control.created_at }}</p>
                                         <button class="btn btn-primary" @click="cargarControl(vi_control.id)">Cargar Hoja</button>
                                     </div>

@@ -156,7 +156,8 @@ export function getJSONEntregas() {
     date: null,
     cantidad: null,
     entrega: null,
-    recibe: null
+    recibe: null,
+    firma_bodegapt: null
   }
 }
 //**** END - FOR JSON SECTION INSIDE PACKING ORDER ****//
@@ -248,6 +249,7 @@ function _normalizeDateForInput(raw) {
 }
 
 export function formatPackingDB(data) {
+  console.log("formatPackingDB receiving data:", JSON.stringify(data.recepcion_retorno_json));
   // Asegurarse de no romper si data.materials no es un array
   let materialsArray = [];
   if (Array.isArray(data.materials)) {
@@ -291,10 +293,29 @@ export function formatPackingDB(data) {
     auditor: {
       user_entrega: data.user_entrega,
       user_autoriza: data.user_autoriza,
-      user_recibe: data.user_recibe
+      user_recibe: data.user_recibe,
+      user_entrega_devolucion: data.user_entrega_devolucion ?? null,
+      user_recibe_devolucion: data.user_recibe_devolucion ?? null,
+      devolucion_entregada: data.devolucion_entregada ?? 0,
+      devolucion_recibida: data.devolucion_recibida ?? 0,
     },
     verificacion_lote: (typeof data.verificacion_lote !== 'undefined') ? Number(data.verificacion_lote) : 0,
     user_verifico: data.user_verifico ?? null,
+    recepcion_retorno_json: (function() {
+      if (!data.recepcion_retorno_json) return {};
+      if (typeof data.recepcion_retorno_json === 'object') {
+        return Array.isArray(data.recepcion_retorno_json) ? {} : data.recepcion_retorno_json;
+      }
+      try {
+        let parsed = JSON.parse(data.recepcion_retorno_json);
+        if (Array.isArray(parsed)) return {};
+        if (!parsed) return {};
+        return parsed;
+      } catch (e) {
+        console.error("Error parsing recepcion_retorno_json:", e);
+        return {};
+      }
+    })(),
 
     times: timesParsed,
     operarios: data.operarios ? JSON.parse(data.operarios) : [],

@@ -147,7 +147,7 @@ class Granel extends Model
 
         $order_code_normalized = str_replace(' ', '', $order_code);
 
-        $order = MixOrder::where('num_id', $order_code_normalized)->first();
+        $order = MixOrder::whereRaw("REPLACE(num_id, ' ', '') = ?", [$order_code_normalized])->first();
         if (!$order) {
             $salida["msg"] = "Orden no encontrada en BD";
             return $salida;

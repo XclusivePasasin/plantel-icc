@@ -116,6 +116,12 @@ Route::post('packing/order/sign/{id}','EmpaqueController@signOrder')->name('pack
 Route::post('packing/tracking/{id}','EmpaqueController@tracking')->name('packing.tracking')->middleware('auth');
 # AJAX finaliza el proceso de empaque de una orden
 Route::post('packing/order/finish/{id}','EmpaqueController@finish')->name('packing.finish')->middleware('auth');
+# AJAX Produccion entrega devoluciones (opcional)
+Route::post('packing/order/entregar-devolucion/{id}','EmpaqueController@entregarDevolucion')->name('packing.entregar.devolucion')->middleware('auth');
+# AJAX Bodega PT recibe devoluciones (opcional)
+Route::post('packing/order/recibir-devolucion/{id}','EmpaqueController@recibirDevolucion')->name('packing.recibir.devolucion')->middleware('auth');
+# AJAX para guardar el chequeo individual de recepcion de retorno
+Route::post('packing/order/save-return-receipt/{id}','EmpaqueController@saveReturnReceipt')->name('packing.save.return.receipt')->middleware('auth');
 #Carga blade para visualizar estados orden de produccion empaque
 Route::get('packing/status','DashboardController@packingStatus')->name('packing.status')->middleware('auth');
 Route::get('packing/status/{code}','EmpaqueController@statusProgress')->name('packing.status.find')->middleware('auth');

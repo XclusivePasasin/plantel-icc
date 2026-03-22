@@ -63,11 +63,13 @@ class Controles extends Model
         try {
 
             $controles = null;
-            if ($request['order']->id != 0) {
-                $controles = Controles::where('packing_id', $request['order']->id)->where('turno', $request['controles']->turno)->whereDate('created_at', '=', date('Y-m-d'))->first();
+            $accion = isset($request['accion']) ? $request['accion'] : null;
+            
+            if (!empty($request['controles']->id)) {
+                $controles = Controles::find($request['controles']->id);
             }
 
-            $accion = isset($request['accion']) ? $request['accion'] : null;
+            // (Removed duplicate accion initialization)
 
             $controles = $this->getUpdateObject($controles, $request['controles'], $request['order'], $obj, $accion);
             // 🔹 Al presionar Finalizar, se llena el campo "verifico" con el username
@@ -138,16 +140,7 @@ class Controles extends Model
         $controles->poptimo="";
         $controles->pminimo="";
 
-        // CHECK PREVIOUS CONTROL FOR SAME ORDER
-        $prevControl = Controles::where('packing_id', $order->id)->whereNotNull('pmaximo')->latest()->first();
-        if ($prevControl) {
-            $controles->vmaximo = $prevControl->vmaximo;
-            $controles->voptimo = $prevControl->voptimo;
-            $controles->vminimo = $prevControl->vminimo;
-            $controles->pmaximo = $prevControl->pmaximo;
-            $controles->poptimo = $prevControl->poptimo;
-            $controles->pminimo = $prevControl->pminimo;
-        }
+
 
         $controles->seccion=0;
         $controles->turno= $turno;
