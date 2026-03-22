@@ -38,7 +38,7 @@ class LoginController extends Controller
 
             //Obteniendo Lista de permisos 
             $role_id = Auth::user()->roles->first()->id;
-            $menus = DB::table('menus')->where('role_id',$role_id)->get();
+            $menus = DB::table('menus')->where('role_id',$role_id)->get()->unique('menu');
             
             session([
                 'role_cur_user' => Auth::user()->getRoleNames()[0],

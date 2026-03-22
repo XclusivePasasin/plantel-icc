@@ -436,7 +436,7 @@
                 <th style="width: 8%;">PROCESO</th>
                 <th style="width: 8%;">CANTIDAD REQUERIDA</th>
                 <th style="width: 10%;">UNI</th>
-                <th style="width: 8%;">ALM</th>
+                <th style="width: 8%;">ALMACEN</th>
                 <th style="width: 9%;">LOTE</th>
                 <th style="width: 1%;"></th>
                 <th style="width: 9%;">PRIMER ENTREGA</th>
@@ -450,7 +450,7 @@
 
     <table class="dw100">
         <tbody>
-            @foreach ($data->materials()->get() as $e)
+            @foreach ($data->empaqueMaterials()->get() as $e)
                 <tr class="fsm3">
                     <td style="width: 8%;">{{ $e->code }}</td>
                     <td style="width: 18%;">{{ $e->description }}</td>
@@ -516,11 +516,31 @@
             <tr>
                 <td style="width: 50%;" class="text-center">
                     <span class="linetext">ENTREGA DEVOLUCIÓN NOMBRE/FIRMA:</span>
-                    <span class="horizontal-line" style="width: 150px; margin-left: 10px;">{{ $data->devolucion_entrega }}</span>
+                    <span class="horizontal-line defblue1" style="width: 150px; margin-left: 10px;">{{ $data->user_entrega_devolucion }}</span>
                 </td>
                 <td style="width: 50%;" class="text-center">
                     <span class="linetext">RECIBE DEVOLUCIÓN NOMBRE/FIRMA:</span>
-                    <span class="horizontal-line" style="width: 150px; margin-left: 10px;">{{ $data->devolucion_recibe }}</span>
+                    <span class="horizontal-line defblue1" style="width: 150px; margin-left: 10px;">
+                        @php
+                            $uniqueRecibe = [];
+                            if (!empty($data->recepcion_retorno_json)) {
+                                $json = json_decode($data->recepcion_retorno_json, true);
+                                if (is_array($json)) {
+                                    foreach ($json as $v) {
+                                        if (isset($v['user']) && trim($v['user']) !== '') {
+                                            $uniqueRecibe[] = trim($v['user']);
+                                        }
+                                    }
+                                }
+                            }
+                            if (!empty($data->user_recibe_devolucion)) {
+                                $uniqueRecibe[] = trim($data->user_recibe_devolucion);
+                            }
+                            // array_unique elimina duplicados exactos, array_filter quita vacíos
+                            $uniqueRecibe = array_filter(array_unique($uniqueRecibe));
+                        @endphp
+                        {{ implode(', ', $uniqueRecibe) }}
+                    </span>
                 </td>
             </tr>
         </table>
@@ -555,10 +575,8 @@
         </p>
     </div>
 
-    <!-- Separadores adicionales -->
-    <div class="mt-1"></div>
-    <div class="mt-1"></div>
-    <div class="mt-1"></div>
+    <!-- Separador y Salto de página para la segunda sección -->
+    <div class="page-break"></div>
 
     <!-- Encabezado de la página -->
     <p class="text-center fw-b1 p-0 m-0">DISTRIBUIDORA CUSCATLAN, S.A. DE C.V.</p>
@@ -608,30 +626,35 @@
             @endphp
             <tr>
                 <!-- FECHA -->
-                <td class="bold" style="width: 10%; padding-right: 5px; white-space: nowrap;">FECHA:</td>
-                <td style="width: 15%; text-align: center; white-space: nowrap; border-bottom: 1px solid #000;">
+                <td class="bold" style="width: 5%; padding-right: 2px; white-space: nowrap;">FECHA:</td>
+                <td style="width: 11%; text-align: center; white-space: nowrap; border-bottom: 1px solid #000;">
                     @if($en->date)
                         <span style="display: inline-block; letter-spacing: 2px; color: #0000ff;">
                             {{ implode(' / ', explode('/', $en->date)) }}
                         </span>
                     @else
-                        <span style="color: #000;">____ / _____ / _____</span>
+                        <span style="color: #000;">__ / __ / __</span>
                     @endif
                 </td>
                 <!-- CANTIDAD -->
-                <td class="bold" style="width: 10%; padding-left: 15px; white-space: nowrap;">CANTIDAD:</td>
-                <td class="defblue1" style="width: 15%; text-align: center; white-space: nowrap; border-bottom: 1px solid #000; color: #000;">
-                    {{ $en->cantidad ?? '_____________' }}
+                <td class="bold" style="width: 8%; padding-left: 5px; white-space: nowrap;">CANTIDAD:</td>
+                <td class="defblue1" style="width: 10%; text-align: center; white-space: nowrap; border-bottom: 1px solid #000; color: #000;">
+                    {{ $en->cantidad ?? '________' }}
                 </td>
                 <!-- ENTREGADO -->
-                <td class="bold" style="width: 10%; padding-left: 15px; white-space: nowrap;">ENTREGADO:</td>
-                <td class="defblue1" style="width: 15%; text-align: center; white-space: nowrap; border-bottom: 1px solid #000; color: #000;">
-                    {{ $en->entrega ?? '_____________' }}
+                <td class="bold" style="width: 9%; padding-left: 5px; white-space: nowrap;">ENTREGADO:</td>
+                <td class="defblue1" style="width: 13%; text-align: center; white-space: nowrap; border-bottom: 1px solid #000; color: #000;">
+                    {{ $en->entrega ?? '__________' }}
                 </td>
                 <!-- RECIBIDO -->
-                <td class="bold" style="width: 10%; padding-left: 15px; white-space: nowrap;">RECIBIDO:</td>
-                <td class="defblue1" style="width: 15%; text-align: center; white-space: nowrap; border-bottom: 1px solid #000; color: #000;">
-                    {{ $en->recibe ?? '_____________' }}
+                <td class="bold" style="width: 8%; padding-left: 5px; white-space: nowrap;">RECIBIDO:</td>
+                <td class="defblue1" style="width: 10%; text-align: center; white-space: nowrap; border-bottom: 1px solid #000; color: #000;">
+                    {{ $en->recibe ?? '________' }}
+                </td>
+                <!-- FIRMA -->
+                <td class="bold" style="width: 6%; padding-left: 5px; white-space: nowrap;">FIRMA:</td>
+                <td class="defblue1" style="width: 20%; text-align: center; white-space: nowrap; border-bottom: 1px solid #000; color: #000;">
+                    {{ $en->firma_bodegapt ?? '________________' }}
                 </td>
             </tr>
         @endforeach

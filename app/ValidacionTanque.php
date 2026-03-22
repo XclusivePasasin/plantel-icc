@@ -19,7 +19,13 @@ class ValidacionTanque extends Model
         'numero_tanque',
         'codigo_empaque',
         'estado',
-        
+        'reconexion_fecha_hora',
+        'reconexion_lote',
+        'reconexion_numero_tanque',
+        'reconexion_operaria',
+        'reconexion_supervisor',
+        'reconexion_control_calidad',
+        'reconexion_estado',
     ];
 
     protected $casts = [

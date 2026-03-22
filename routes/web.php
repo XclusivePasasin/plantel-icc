@@ -100,7 +100,7 @@ Route::get('packing/order/uxc/{order_code}', 'EmpaqueController@getUXCByOrder')
     ->name('packing.getUXC')
     ->middleware('auth');
 #Carga el blade con componente de busqueda orden desde API o DB
-Route::get('packing/load','DashboardController@showPacking')->name('packing.load')->middleware('auth', 'role:Bodega|Produccion|');
+Route::get('packing/load','DashboardController@showPacking')->name('packing.load')->middleware('auth', 'role:Bodega|Produccion|Bodega PT');
 # Realiza busqueda de orden de empaque desde API o DB
 Route::get('packing/orders/{code}','EmpaqueController@search')->name('packing.search')->middleware('auth');
 # AJAX Guarda o actualiza una orden de empaque
@@ -111,10 +111,17 @@ Route::get('packing/tracking','DashboardController@packing')->name('packing.seg'
 Route::get('packing/find/{code}','EmpaqueController@searchDB')->name('packing.search.strict')->middleware('auth');
 #AJAX Autoriza una orden de empaque
 Route::post('packing/order/authorize/{id}','EmpaqueController@authorizeOrder')->name('packing.authorize')->middleware('auth');
+Route::post('packing/order/sign/{id}','EmpaqueController@signOrder')->name('packing.sign')->middleware('auth');
 # AJAX para modificar el seguimiento de los tiempos,operarios,entregas, observaciones
 Route::post('packing/tracking/{id}','EmpaqueController@tracking')->name('packing.tracking')->middleware('auth');
 # AJAX finaliza el proceso de empaque de una orden
 Route::post('packing/order/finish/{id}','EmpaqueController@finish')->name('packing.finish')->middleware('auth');
+# AJAX Produccion entrega devoluciones (opcional)
+Route::post('packing/order/entregar-devolucion/{id}','EmpaqueController@entregarDevolucion')->name('packing.entregar.devolucion')->middleware('auth');
+# AJAX Bodega PT recibe devoluciones (opcional)
+Route::post('packing/order/recibir-devolucion/{id}','EmpaqueController@recibirDevolucion')->name('packing.recibir.devolucion')->middleware('auth');
+# AJAX para guardar el chequeo individual de recepcion de retorno
+Route::post('packing/order/save-return-receipt/{id}','EmpaqueController@saveReturnReceipt')->name('packing.save.return.receipt')->middleware('auth');
 #Carga blade para visualizar estados orden de produccion empaque
 Route::get('packing/status','DashboardController@packingStatus')->name('packing.status')->middleware('auth');
 Route::get('packing/status/{code}','EmpaqueController@statusProgress')->name('packing.status.find')->middleware('auth');
@@ -241,6 +248,8 @@ Route::prefix('tanque')->group(function () {
     Route::post('/guardar', [TanqueController::class, 'storeOrUpdate']);
     Route::post('/verificar/{numero_orden}', [TanqueController::class, 'verificar'])->name('tanque.verificar');
     Route::post('/autorizar/{numero_orden}', [TanqueController::class, 'autorizar'])->name('tanque.autorizar');
+    Route::post('/verificar-reconexion/{numero_orden}', [TanqueController::class, 'verificarReconexion'])->name('tanque.verificar-reconexion');
+    Route::post('/autorizar-reconexion/{numero_orden}', [TanqueController::class, 'autorizarReconexion'])->name('tanque.autorizar-reconexion');
     Route::get('/lote/{numero_orden}', [TanqueController::class, 'getLotePorOrden'])->name('tanque.lote');
 });
 

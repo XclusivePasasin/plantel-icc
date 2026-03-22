@@ -509,9 +509,9 @@
                                                 <th>CONSUMO DE BOBINA  </th>
                                                 <td>
                                                     <input type="text"
-                                                    placeholder=""
+                                                    placeholder="Automático desde Empaque"
                                                     class="form-control form-control-sm"
-                                                    :disabled="data[0].user.rolname != 'PROD' "
+                                                    disabled
                                                     v-model="data[0].inspecciones.consumobobina" />
                                                 </td>
                                             </tr>
@@ -524,7 +524,14 @@
                          <div class="text-end">
                             <div class="col-auto">
                                 <button type="button" v-if="data[0].inspecciones.estado == 5" class="btn btn-dark" @click="generatedReport"><i class="bi bi-file-earmark-pdf"></i> Generar Reporte</button>
-                                <button type="button" :disabled="data[0].inspecciones.estado != 0 && data[0].inspecciones.estado != 1 && data[0].inspecciones.estado != 2" v-if="data[0].user.rolname=='PROD'" @click="saveOrUpdate" class="btn btn-success">Guardar</button>
+                                <button
+                                  type="button"
+                                  :disabled="(data[0].inspecciones.estado != 0 && data[0].inspecciones.estado != 2) || isSaving"
+                                  v-if="data[0].user.rolname=='PROD'"
+                                  @click="saveOrUpdate"
+                                  class="btn btn-success"
+                                  :title="data[0].inspecciones.estado == 1 ? 'Esperando verificación del supervisor' : (data[0].inspecciones.estado == 3 ? 'Esperando finalización de calidad' : 'Guardar')"
+                                >Guardar</button>
                                 <!-- <button type="button" :disabled="data[0].inspecciones.estado != 1 && data[0].inspecciones.estado != 3" v-if="data[0].user.rolname=='CL' || data[0].user.rolname=='SPROD'" @click="approved('verificar')" class="btn btn-success">Verificar</button>
                                 <button type="button" :disabled="data[0].inspecciones.estado != 2 && data[0].inspecciones.estado != 4" v-if="data[0].user.rolname=='CL' || data[0].user.rolname=='ACL'" @click="approved('finalizar')" class="btn btn-warning">Finalizar</button> -->
                                 <button type="button" :disabled="data[0].inspecciones.estado != 1 && data[0].inspecciones.estado != 3" v-if="data[0].user.rolname=='SPROD'" @click="approved('verificar')" class="btn btn-success">Verificar</button>
@@ -555,6 +562,7 @@ export default {
       reporte:false,
       porcentaje: 100,
       capacidad: 0,
+      isSaving: false,
       FLAGS: {
         PACKING_AUTORIZED: 3,
         PACKING_FINALIZED: 4
@@ -599,14 +607,18 @@ export default {
     cargarDatosTanque() {
         if (!this.data[0].tanque) return;
         const t = this.data[0].tanque;
+
+        // 🔄 Si hay una reconexión autorizada (estado 3), se usan esos datos como primordiales
+        const usaReconexion = (t.reconexion_estado === 3);
+
         this.data[0].inspecciones = {
-        ...this.data[0].inspecciones,
-        fechahoraconxtanque1: this.formatDateTimeLocal(t.fecha_hora),
-        lote: t.lote || '',
-        tanque: t.numero_tanque || '',
-        opmaquinaconxtanque1: t.operaria || '',
-        supervisorconxtanque1: t.supervisor || '',
-        ctrlcalidadconxtanque1: t.control_calidad || '',
+            ...this.data[0].inspecciones,
+            fechahoraconxtanque1: this.formatDateTimeLocal(usaReconexion ? t.reconexion_fecha_hora : t.fecha_hora),
+            lote: (usaReconexion ? t.reconexion_lote : t.lote) || '',
+            tanque: (usaReconexion ? t.reconexion_numero_tanque : t.numero_tanque) || '',
+            opmaquinaconxtanque1: (usaReconexion ? t.reconexion_operaria : t.operaria) || '',
+            supervisorconxtanque1: (usaReconexion ? t.reconexion_supervisor : t.supervisor) || '',
+            ctrlcalidadconxtanque1: (usaReconexion ? t.reconexion_control_calidad : t.control_calidad) || '',
         };
     },
 
@@ -719,6 +731,8 @@ export default {
 
             saveOrUpdate: async function(){
 
+                if (this.isSaving) return;
+
                 var data = {
                     num_id : this.data[0].order.num_id,
                     packing_id : this.data[0].order.id,
@@ -760,14 +774,22 @@ export default {
                 }
 
 
-                var confirm = await StatusHandler.Confirm("¿Desea realizar esta acción?");
-                if(!confirm)return;
+                // 🛑 Bloquear si hay reconexión en curso
+                if (this.data[0].tanque && this.data[0].tanque.reconexion_estado > 0 && this.data[0].tanque.reconexion_estado < 3) {
+                    StatusHandler.ShowStatus("No se puede guardar la inspección mientras hay una reconexión a tanque en proceso de autorización.", StatusHandler.OPERATION.DEFAULT, StatusHandler.STATUS.FAIL);
+                    return;
+                }
 
+                const confirm = await StatusHandler.Confirm("¿Desea realizar esta acción?");
+                if (!confirm) return;
+
+                this.isSaving = true;
                 StatusHandler.LShow();
 
                 upsertInspecciones(data).then(result=>{
                     let response = result.data;
                     if(response.code == 0){
+                        this.isSaving = false;
                         StatusHandler.ShowStatus(response.msg,StatusHandler.OPERATION.DEFAULT,StatusHandler.STATUS.FAIL);
                         return;
                     }else{
@@ -777,14 +799,21 @@ export default {
                     StatusHandler.LClose();
                     StatusHandler.ShowStatus("!Acción Existosa!",StatusHandler.OPERATION.CREATE,StatusHandler.STATUS.SUCCESS);
                 }).catch(ex=>{
+                    this.isSaving = false;
                     StatusHandler.LClose();
                     StatusHandler.Exception("Ocurrió un error",ex);
                 })
             },
 
-           approved: async function(action){
+            approved: async function(action){
                var confirm = await StatusHandler.Confirm("¿Desea realizar esta acción?");
                 if(!confirm)return;
+
+                // 🛑 Bloquear si hay reconexión en curso
+                if (this.data[0].tanque && this.data[0].tanque.reconexion_estado > 0 && this.data[0].tanque.reconexion_estado < 3) {
+                    StatusHandler.ShowStatus("No se puede realizar esta acción mientras hay una reconexión a tanque en proceso de autorización.", StatusHandler.OPERATION.DEFAULT, StatusHandler.STATUS.FAIL);
+                    return;
+                }
 
                 StatusHandler.LShow();
 

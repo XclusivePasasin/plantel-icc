@@ -4350,7 +4350,16 @@ input[type="checkbox"]:disabled:after {
             <div class="text-end pt-4">
               <div class="col-auto">
                 <button type="button" v-if="data[0].estandares.seccion ==9" @click="generatedReport" class="btn btn-dark"><i class="bi bi-file-earmark-pdf"></i> Generar Reporte</button>
-                <button type="button" :disabled="data[0].estandares.seccion >=8" v-if="data[0].user.rolname=='PROD'" @click="saveOrUpdate" class="btn btn-success">Guardar</button>
+                <button
+                  type="button"
+                  :disabled="data[0].estandares.seccion >= 8 || pendienteVerificacion"
+                  v-if="data[0].user.rolname=='PROD'"
+                  @click="saveOrUpdate"
+                  class="btn btn-success"
+                  :title="pendienteVerificacion ? 'Esperando verificación de calidad para continuar' : 'Guardar'"
+                >
+                  Guardar
+                </button>
                 <button
                   type="button"
                   :disabled="data[0].estandares.seccion != 8 || data[0].estandares.supervisado"
@@ -4409,6 +4418,7 @@ export default {
       edit_mode: false,
       reporte:false,
       presentacionInput: '',
+      pendienteVerificacion: false, // true después de que PROD guarda; se resetea cuando Calidad verifica
     };
   },
   computed: {
@@ -4448,6 +4458,18 @@ export default {
       this.presentacionInput = presentacionBase.trim(); // Guardar en la variable
     } else {
       this.presentacionInput = this.data[0].estandares.presentacion; // Inicializar desde lo existente
+    }
+
+    // Cargar hora actual si es PROD y la hora de la seccion actual esta vacia
+    if (this.data[0]?.user?.rolname === 'PROD') {
+      const seccion = this.data[0]?.estandares?.seccion || 0;
+      if (!this.data[0].estandares.horas[seccion]) {
+        const now = new Date();
+        const hours = String(now.getHours()).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        // Usar this.$set para reactividad en Vue 2
+        this.$set(this.data[0].estandares.horas, seccion, `${hours}:${minutes}`);
+      }
     }
   },
 
@@ -4538,6 +4560,17 @@ export default {
           this.data[0].estandares = response.data[0].estandares;
           // 👇 Restaurar el usuario original en lugar del que viene null
           this.data[0].user = currentUser;
+
+          // Cargar hora actual si es PROD y la hora de la seccion actual esta vacia
+          if (this.data[0]?.user?.rolname === 'PROD') {
+            const currentSec = this.data[0]?.estandares?.seccion || 0;
+            if (!this.data[0].estandares.horas[currentSec]) {
+              const now = new Date();
+              const hours = String(now.getHours()).padStart(2, '0');
+              const minutes = String(now.getMinutes()).padStart(2, '0');
+              this.$set(this.data[0].estandares.horas, currentSec, `${hours}:${minutes}`);
+            }
+          }
         }
         
         this.edit_mode = false;
@@ -4785,6 +4818,16 @@ export default {
 
         this.data = response.data;
         this.edit_mode = false;
+
+        // Bloquear el botón Guardar de PROD hasta que Calidad verifique
+        if (rol === 'PROD') {
+          this.pendienteVerificacion = true;
+        }
+        // Si Calidad verifica (sección avanza), desbloquear para PROD
+        if (rol === 'CL' || rol === 'ACL') {
+          this.pendienteVerificacion = false;
+        }
+
         StatusHandler.LClose();
         StatusHandler.ShowStatus("¡Acción Exitosa!", StatusHandler.OPERATION.CREATE, StatusHandler.STATUS.SUCCESS);
       }).catch(ex => {

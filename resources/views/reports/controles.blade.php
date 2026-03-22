@@ -141,6 +141,11 @@ input[type="checkbox"] {
 }
 
     </style>
+    @foreach ($sheets as $sheet)
+        @php
+            $data = $sheet['data'];
+            $chart_image = $sheet['chart_image'];
+        @endphp
     <p class="text-center fw-b1 p-0 m-0">ICC LABORATORIES</p><br>
     <p class="text-center fw-b1 p-0 m-0">HOJA DE CONTROLES EN PROCESO (PESO Y VOLUMEN)</p><br>
 
@@ -452,6 +457,11 @@ input[type="checkbox"] {
 
         </tr>
     </table>
+    
+    @if (!$loop->last)
+        <div class="page-break"></div>
+    @endif
+    @endforeach
 
 </body>
 

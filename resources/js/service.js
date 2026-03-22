@@ -376,6 +376,18 @@ export function finishPacking(order_id, data) {
     })
 }
 
+export function entregarDevolucionPacking(order_id) {
+    return axios.post(`/packing/order/entregar-devolucion/${order_id}`);
+}
+
+export function recibirDevolucionPacking(order_id) {
+    return axios.post(`/packing/order/recibir-devolucion/${order_id}`);
+}
+
+export function saveReturnReceiptPacking(order_id, data) {
+    return axios.post(`/packing/order/save-return-receipt/${order_id}`, data);
+}
+
 
 
 
@@ -824,6 +836,16 @@ export async function autorizarValidacionTanque(numero_orden) {
     return response.data;
 }
 
+export async function verificarReconexionTanque(numero_orden) {
+    const response = await axios.post(`/tanque/verificar-reconexion/${numero_orden}`);
+    return response.data;
+}
+
+export async function autorizarReconexionTanque(numero_orden) {
+    const response = await axios.post(`/tanque/autorizar-reconexion/${numero_orden}`);
+    return response.data;
+}
+
 export async function obtenerLotePorOrden(numero_orden) {
     const response = await axios.get(`/tanque/lote/${numero_orden}`);
     return response.data; // ✅ Retorna { message, lote }
@@ -934,4 +956,20 @@ export function updateUserEntregaMp(orderId) {
                 reject(error);
             });
     });
+}
+
+/**
+ * Firma orden de empaque (entrega o recibe)
+ * @param {Number} id
+ * @param {String} type 'entrega' | 'recibe'
+ * @returns {Promise}
+ */
+export function signPackingOrder(id, type) {
+    return new Promise((resolve, reject) => {
+        axios.post(`/packing/order/sign/${id}`, { type: type }).then(response => {
+            resolve(response);
+        }).catch(e => {
+            reject(e);
+        })
+    })
 }

@@ -28,7 +28,7 @@ class Controles extends Model
             $controles= Controles::where('packing_id',$order->id)->where('turno', $turno)->whereDate('created_at', '=', date('Y-m-d'))->first();
             if($controles){
                 if ($controles->fecharealizada!=null)
-                    $controles->fecharealizada= date("d/m/Y", strtotime($controles->fecharealizada));
+                    $controles->fecharealizada= date("Y-m-d", strtotime($controles->fecharealizada));
                 $controles= $this->getParseObject($controles);
                 $salida["code"] = 1;
                 $salida["msg"] = "Processed Successfully";
@@ -63,11 +63,13 @@ class Controles extends Model
         try {
 
             $controles = null;
-            if ($request['order']->id != 0) {
-                $controles = Controles::where('packing_id', $request['order']->id)->where('turno', $request['controles']->turno)->whereDate('created_at', '=', date('Y-m-d'))->first();
+            $accion = isset($request['accion']) ? $request['accion'] : null;
+            
+            if (!empty($request['controles']->id)) {
+                $controles = Controles::find($request['controles']->id);
             }
 
-            $accion = isset($request['accion']) ? $request['accion'] : null;
+            // (Removed duplicate accion initialization)
 
             $controles = $this->getUpdateObject($controles, $request['controles'], $request['order'], $obj, $accion);
             // 🔹 Al presionar Finalizar, se llena el campo "verifico" con el username
@@ -137,6 +139,9 @@ class Controles extends Model
         $controles->pmaximo="";
         $controles->poptimo="";
         $controles->pminimo="";
+
+
+
         $controles->seccion=0;
         $controles->turno= $turno;
         $controles->fecharealizada="";
@@ -240,10 +245,22 @@ class Controles extends Model
         $controles->oproduccion = isset($request->oproduccion) ? $request->oproduccion : $order->num_id;
         $controles->llenado=$request->llenado;
         if ($request->seccion < 25 && $usuario['rolname']=='PROD'){
-            if(strlen($request->fecharealizada) == 10)
-                $controles->fecharealizada=date("Y-m-d", strtotime(str_replace("/", "-",$request->fecharealizada)));
-            if(strlen($request->fecharealizada2) == 10)
-                $controles->fecharealizada2=date("Y-m-d", strtotime(str_replace("/", "-",$request->fecharealizada2)));
+            if(strlen($request->fecharealizada) == 10) {
+                if (strpos($request->fecharealizada, '-') !== false && preg_match('/^\d{4}-\d{2}-\d{2}$/', $request->fecharealizada)) {
+                     $controles->fecharealizada = $request->fecharealizada;
+                } else {
+                     $controles->fecharealizada=date("Y-m-d", strtotime(str_replace("/", "-",$request->fecharealizada)));
+                }
+            }
+                
+            if(strlen($request->fecharealizada2) == 10) {
+                 if (strpos($request->fecharealizada2, '-') !== false && preg_match('/^\d{4}-\d{2}-\d{2}$/', $request->fecharealizada2)) {
+                     $controles->fecharealizada2 = $request->fecharealizada2;
+                } else {
+                     $controles->fecharealizada2=date("Y-m-d", strtotime(str_replace("/", "-",$request->fecharealizada2)));
+                }
+            }
+                
             $controles->llenado=$usuario['username'];
         }
         $controles->vmaximo=$request->vmaximo;
@@ -296,10 +313,10 @@ class Controles extends Model
 
         // Formatea el timestamp a texto
         if ($controles->fecharealizada) {
-            $controles->fecharealizada = date("d/m/Y", strtotime($controles->fecharealizada));
+            $controles->fecharealizada = date("Y-m-d", strtotime($controles->fecharealizada));
         }
         if ($controles->fecharealizada2) {
-            $controles->fecharealizada2 = date("d/m/Y", strtotime($controles->fecharealizada2));
+            $controles->fecharealizada2 = date("Y-m-d", strtotime($controles->fecharealizada2));
         }
         return $controles;
 

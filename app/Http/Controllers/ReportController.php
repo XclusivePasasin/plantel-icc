@@ -28,7 +28,7 @@ class ReportController extends Controller
             return "Orden no encontrada";
         }
 
-        $order->load('materials');
+        $order->load('mixMaterials');
 
         // Aplica formato a observaciones
         $order->observaciones = $this->formatObservations($order->observaciones);
@@ -118,7 +118,7 @@ class ReportController extends Controller
         }
 
         /** Buscar la hoja de inspección asociada por num_id */
-        $inspeccion = \App\Inspecciones::where('num_id', $order->num_id)->first();
+        $inspeccion = \App\Inspecciones::whereRaw("REPLACE(num_id, ' ', '') = ?", [preg_replace('/\s+/', '', $order->num_id)])->first();
 
         // Si no existe, crear objeto vacío para evitar errores
         if (!$inspeccion) {
@@ -166,7 +166,7 @@ class ReportController extends Controller
             return "Orden no encontrada";
         }
 
-        $order->load('materials');
+        $order->load('mixMaterials');
         $data = ['data' => $order];
         // echo json_encode($data);
         $pdf = PDF::loadView('reports.vinietas', $data);
@@ -329,135 +329,147 @@ class ReportController extends Controller
 
     public function controlesCalidad(Request $request, $order_code, $turno)
     {
-        $tmp = new Controles();
-        $usuario = $this->obtenerUsuarioEstandar($request);
-        $controles = $tmp->search($order_code, $turno, $usuario);
-        $controles = json_decode(json_encode($controles), false);
-
-        if ($controles->code != 1 || $controles->data->controles->seccion != 25) {
+        $packing = \App\Packing::whereRaw("REPLACE(num_id, ' ', '') = ?", [preg_replace('/\s+/', '', $order_code)])->first();
+        
+        if (!$packing) {
             return "Orden no encontrada";
         }
 
-        $c = $controles->data->controles;
+        // Fetch all control sheets for this order
+        $allControles = \App\Controles::where('packing_id', $packing->id)->orderBy('created_at', 'asc')->get();
 
-        // ⚠️ Asegurar 25 posiciones en horas y m7, completando con null si falta
-        $horas = array_pad((array) $c->horas, 25, null);
-        $pesos = array_pad((array) $c->m7, 25, null);
+        if ($allControles->isEmpty()) {
+            return "No hay controles registrados para esta orden";
+        }
 
-        // ✅ Convertir datos a números o null
-        $datos = array_map(function ($v) {
-            $val = floatval($v);
-            return is_numeric($v) ? $val : null;
-        }, $pesos);
+        $controlInstance = new \App\Controles();
+        $sheets = [];
 
-        // ✅ Líneas horizontales fijas de 25 elementos
-        $pmax = array_pad(array_fill(0, count($horas), floatval($c->pmaximo)), 25, floatval($c->pmaximo));
-        $popt = array_pad(array_fill(0, count($horas), floatval($c->poptimo)), 25, floatval($c->poptimo));
-        $pmin = array_pad(array_fill(0, count($horas), floatval($c->pminimo)), 25, floatval($c->pminimo));
+        foreach ($allControles as $controlModel) {
+            $parsedControl = $controlInstance->getParseObject($controlModel);
+            $c = $parsedControl;
 
+            // Asegurar 25 posiciones en horas y m7, completando con null si falta
+            $horas = array_pad((array) $c->horas, 25, null);
+            $pesos = array_pad((array) $c->m7, 25, null);
 
-        $chartConfig = [
-            'type' => 'line',
-            'data' => [
-                'labels' => array_map(function($h) {
-                    return ($h === null || trim($h) === '') ? 'N/A' : $h;
-                }, $horas),
-                'datasets' => [
-                    [
-                        'label' => 'Peso Real',
-                        'data' => $datos,
-                        'borderColor' => '#007bff',
-                        'backgroundColor' => 'rgba(0,123,255,0.3)',
-                        'fill' => false,
-                        'pointRadius' => 4,
-                        'borderWidth' => 2,
-                        'tension' => 0
-                    ],
-                    [
-                        'label' => 'Maximo',
-                        'data' => $pmax,
-                        'borderColor' => 'red',
-                        'fill' => false,
-                        'pointRadius' => 0
-                    ],
-                    [
-                        'label' => 'Optimo',
-                        'data' => $popt,
-                        'borderColor' => 'green',
-                        'fill' => false,
-                        'pointRadius' => 0
-                    ],
-                    [
-                        'label' => 'Minimo',
-                        'data' => $pmin,
-                        'borderColor' => 'orange',
-                        'fill' => false,
-                        'pointRadius' => 0
-                    ]
-                ]
-            ],
-            'options' => [
-                'responsive' => true,
-                'plugins' => [
-                    'legend' => [
-                        'display' => false,      // ✅ Oculta completamente la leyenda
-                        'labels' => [
-                            'display' => false   // ✅ Oculta específicamente los labels
-                        ]
-                    ],
-                    'title' => ['display' => false]
-                ],
-                'scales' => [
-                    'y' => [
-                        'title' => ['display' => false],
-                        'ticks' => [
-                            'callback' => function($value) {
-                                return $value === null ? 'N/A' : $value;
-                            }
-                        ]
-                    ],
-                    'x' => [
-                        'title' => ['display' => false],
-                        'ticks' => [
-                            'autoSkip' => false,
-                            'maxRotation' => 0,
-                            'minRotation' => 0,
-                            'display' => true        // ✅ Mantiene las horas visibles en el eje X
+            // Convertir datos a números o null
+            $datos = array_map(function ($v) {
+                $val = floatval($v);
+                return is_numeric($v) ? $val : null;
+            }, $pesos);
+
+            // Líneas horizontales fijas de 25 elementos
+            $pmax = array_pad(array_fill(0, count($horas), floatval($c->pmaximo ?? 0)), 25, floatval($c->pmaximo ?? 0));
+            $popt = array_pad(array_fill(0, count($horas), floatval($c->poptimo ?? 0)), 25, floatval($c->poptimo ?? 0));
+            $pmin = array_pad(array_fill(0, count($horas), floatval($c->pminimo ?? 0)), 25, floatval($c->pminimo ?? 0));
+
+            $chartConfig = [
+                'type' => 'line',
+                'data' => [
+                    'labels' => array_map(function($h) {
+                        return ($h === null || trim($h) === '') ? 'N/A' : $h;
+                    }, $horas),
+                    'datasets' => [
+                        [
+                            'label' => 'Peso Real',
+                            'data' => $datos,
+                            'borderColor' => '#007bff',
+                            'backgroundColor' => 'rgba(0,123,255,0.3)',
+                            'fill' => false,
+                            'pointRadius' => 4,
+                            'borderWidth' => 2,
+                            'tension' => 0
                         ],
-                        'grid' => ['display' => false]
+                        [
+                            'label' => 'Maximo',
+                            'data' => $pmax,
+                            'borderColor' => 'red',
+                            'fill' => false,
+                            'pointRadius' => 0
+                        ],
+                        [
+                            'label' => 'Optimo',
+                            'data' => $popt,
+                            'borderColor' => 'green',
+                            'fill' => false,
+                            'pointRadius' => 0
+                        ],
+                        [
+                            'label' => 'Minimo',
+                            'data' => $pmin,
+                            'borderColor' => 'orange',
+                            'fill' => false,
+                            'pointRadius' => 0
+                        ]
                     ]
                 ],
-                'layout' => [
-                    'padding' => ['left' => 5, 'right' => 0]
-                ],
-                'interaction' => [
-                    'mode' => 'index',
-                    'intersect' => false
-                ],
-                'elements' => [
-                    'point' => [
-                        'hoverRadius' => 0       // ✅ Oculta puntos al hacer hover
+                'options' => [
+                    'responsive' => true,
+                    'plugins' => [
+                        'legend' => [
+                            'display' => false,
+                            'labels' => [
+                                'display' => false
+                            ]
+                        ],
+                        'title' => ['display' => false]
+                    ],
+                    'scales' => [
+                        'y' => [
+                            'title' => ['display' => false]
+                        ],
+                        'x' => [
+                            'title' => ['display' => false],
+                            'ticks' => [
+                                'autoSkip' => false,
+                                'maxRotation' => 0,
+                                'minRotation' => 0,
+                                'display' => true
+                            ],
+                            'grid' => ['display' => false]
+                        ]
+                    ],
+                    'layout' => [
+                        'padding' => ['left' => 5, 'right' => 0]
+                    ],
+                    'interaction' => [
+                        'mode' => 'index',
+                        'intersect' => false
+                    ],
+                    'elements' => [
+                        'point' => [
+                            'hoverRadius' => 0
+                        ]
                     ]
                 ]
-            ]
-        ];
+            ];
 
-        $response = Http::get('https://quickchart.io/chart', [
-            'c' => json_encode($chartConfig),
-            'width' => 800,
-            'height' => 500,
-            'format' => 'png',
-            'backgroundColor' => 'white'
-        ]);
+            try {
+                $response = \Illuminate\Support\Facades\Http::get('https://quickchart.io/chart', [
+                    'c' => json_encode($chartConfig),
+                    'width' => 800,
+                    'height' => 500,
+                    'format' => 'png',
+                    'backgroundColor' => 'white'
+                ]);
 
-        $chartImageBase64 = 'data:image/png;base64,' . base64_encode($response->body());
+                $chartImageBase64 = 'data:image/png;base64,' . base64_encode($response->body());
+            } catch (\Exception $e) {
+                \Log::error('QuickChart Error: ' . $e->getMessage());
+                $chartImageBase64 = '';
+            }
 
-        $data = [
-            'data' => $controles->data,
-            'chart_image' => $chartImageBase64
-        ];
+            $sheets[] = [
+                'data' => (object)[
+                    'order' => $packing,
+                    'controles' => $c
+                ],
+                'chart_image' => $chartImageBase64
+            ];
+        }
 
-        $pdf = PDF::loadView('reports.controles', $data)->setPaper('a4', 'landscape');
+        $pdf = \PDF::loadView('reports.controles', ['sheets' => $sheets])->setPaper('a4', 'landscape');
         return $pdf->download('ControlesCalidad_' . date('Y-m-d') . '.pdf');
     }
 
@@ -505,14 +517,62 @@ class ReportController extends Controller
         $inspecciones = json_decode(json_encode($inspecciones), FALSE);
 
         $packing = DB::table('packings')
-            ->select('product_name')
-            ->where('num_id', $order_code)   
+            ->select('id', 'product_name')
+            ->whereRaw("REPLACE(num_id, ' ', '') = ?", [preg_replace('/\s+/', '', $order_code)])
             ->first();
+
+        $tanque = DB::table('validaciones_tanque')
+            ->whereRaw("REPLACE(numero_orden, ' ', '') = ?", [preg_replace('/\s+/', '', $order_code)])
+            ->first();
+
+        // Obtener desglose de TODAS las bobinas
+        $bobina = null;
+        if ($packing) {
+            // Buscar por tipo_prod (puede ser 'Bobina', 'bobina', etc.)
+            $bobinaRows = DB::table('empaque_materials')
+                ->where('packing_id', $packing->id)
+                ->whereRaw("LOWER(TRIM(COALESCE(tipo_prod,''))) LIKE '%bobina%'")
+                ->get();
+
+            // Fallback: si tipo_prod está vacío en BD, buscar por descripción (patrón "LAM")
+            if ($bobinaRows->isEmpty()) {
+                $bobinaRows = DB::table('empaque_materials')
+                    ->where('packing_id', $packing->id)
+                    ->whereRaw("LOWER(description) LIKE '%lam %'")
+                    ->get();
+            }
+
+            if ($bobinaRows->isNotEmpty()) {
+                $e1 = 0;
+                $e2 = 0;
+                $dev = 0;
+                $descTmp = [];
+
+                foreach($bobinaRows as $bobinaRow) {
+                    $e1  += floatval($bobinaRow->entrega1 ?? 0);
+                    $e2  += floatval($bobinaRow->entrega2 ?? 0);
+                    $dev += floatval($bobinaRow->return   ?? 0);
+                    if(!empty($bobinaRow->description)) {
+                        $descTmp[] = $bobinaRow->description;
+                    }
+                }
+
+                $bobina = [
+                    'descripcion' => implode(', ', array_unique($descTmp)),
+                    'entrega1'    => $e1,
+                    'entrega2'    => $e2,
+                    'devolucion'  => $dev,
+                    'consumo'     => ($e1 + $e2) - $dev,
+                ];
+            }
+        }
 
         if ($inspecciones->code == 1 && $inspecciones->data->inspecciones->estado == 5) {
             $data = [
-                'data' => $inspecciones->data,
-                'packing' => $packing
+                'data'    => $inspecciones->data,
+                'packing' => $packing,
+                'tanque'  => $tanque,
+                'bobina'  => $bobina,
             ];
             $pdf = PDF::loadView('reports.inspecciones', $data)->setPaper('a4', 'letter');
             $fechaActual = date('Y-m-d');

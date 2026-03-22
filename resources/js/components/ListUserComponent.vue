@@ -119,7 +119,7 @@
                                         <td class="text-nowrap">
                                             {{ user.email }}
                                         </td>
-                                        <td>{{ user.roles[0].name }}</td>
+                                        <td>{{ user.roles.length > 0 ? user.roles[0].name : 'Sin rol' }}</td>
                                         <td :hidden="user.status == 'Inactivo'"><span class="badge badge-sa-pill badge-sa-success">{{user.status}}</span></td>
                                         <td :hidden="user.status == 'Activo'"><span class="badge badge-sa-pill badge-sa-danger">{{user.status}}</span></td>
                                         <td>
@@ -201,9 +201,10 @@ export default {
        filteredUsers (){
        if(this.searchQuery){
         return this.users.filter((item)=>{
+            const roleName = item.roles && item.roles.length > 0 ? item.roles[0].name.toLowerCase() : '';
             return this.searchQuery.toLowerCase().split(' ')
             .every(u => 
-            item.email.toLowerCase().includes(u) || item.name.toLowerCase().includes(u) || item.roles[0].name.toLowerCase().includes(u))
+            item.email.toLowerCase().includes(u) || item.name.toLowerCase().includes(u) || roleName.includes(u))
 
         })
         }else{

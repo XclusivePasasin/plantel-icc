@@ -513,7 +513,7 @@
 
         <table class="dw100">
             <tbody>
-                @foreach ($data->materials()->get() as $e)
+                @foreach ($data->mixMaterials()->get() as $e)
                 <tr class="fsm3">
                     <td style="width: 10%;">{{ $e->code }}</td>
                     <td style="width: 20%;">{{ $e->description }}</td>

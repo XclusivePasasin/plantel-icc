@@ -364,12 +364,12 @@ class ControlProductoController extends Controller
      */
     public function getDescripcionEstado($estado)
     {
-        return match ($estado) {
-            1 => 'Pendiente de verificación',
-            2 => 'Pendiente de autorización',
-            3 => 'Autorizado',
-            default => 'Desconocido',
-        };
+        switch ($estado) {
+            case 1: return 'Pendiente de verificación';
+            case 2: return 'Pendiente de autorización';
+            case 3: return 'Autorizado';
+            default: return 'Desconocido';
+        }
     }
     
 

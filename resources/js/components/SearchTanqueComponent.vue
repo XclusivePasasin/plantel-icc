@@ -123,6 +123,7 @@ export default {
             // 💾 Orden existente en BD - respetar el estado guardado
             const v = response.data.orden;
             ordenFormateada = {
+              ...v, // ✅ Pasar todos los campos incluyendo reconexión
               numero_orden: v.numero_orden,
               fecha_hora: v.fecha_hora,
               operaria: v.operaria || '',
@@ -130,7 +131,8 @@ export default {
               control_calidad: v.control_calidad || '',
               lote: v.lote || '',
               numero_tanque: v.numero_tanque || '',
-              estado: v.estado ?? 1, // ⬅️ Respetar estado guardado (por defecto 1 si no existe)
+              estado: Number(v.estado ?? 1),
+              reconexion_estado: Number(v.reconexion_estado ?? 0),
               codigo_empaque: v.codigo_empaque || ''
             };
           }

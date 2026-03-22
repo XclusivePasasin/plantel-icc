@@ -34,17 +34,7 @@ class ControlesController extends Controller
             return response()->json($validar);
         }
 
-        // ✅ Si ya existe un control hoy para esta orden y turno, forzamos actualización
-        if (!empty($datos['order']->id)) {
-            $existe = \App\Controles::where('packing_id', $datos['order']->id)
-                ->where('turno', $datos['controles']->turno)
-                ->whereDate('created_at', now()->toDateString())
-                ->exists();
-
-            if ($existe) {
-                $datos['accion'] = 'editar'; // 👈 forzamos actualización automática
-            }
-        }
+        // Permitir N hojas: Ya no forzamos la actualización automática.
 
         return response()->json($controles->saveOrUpdate($datos, $usuario));
     }

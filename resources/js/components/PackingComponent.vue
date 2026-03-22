@@ -76,8 +76,9 @@
                                             type="date"
                                             placeholder="DD/MM/AAAA"
                                             v-model="e.date_init"
-                                            :disabled="!(edit_mode && has_cap('cap-produccion') && (data.status == 2 || data.status == 3)) || originalTimes[index].date_init"
+                                            :disabled="!(edit_mode && has_cap('cap-produccion') && parseInt(data.status) === 2) || !!originalTimes[index].date_init"
                                             class="form-control form-control-sm defblue1"
+                                            @focus="autoFillDateTime(index)"
                                         />
 
                                         <!-- <input type="text"
@@ -104,7 +105,7 @@
                                 <div class="col-12 col-md-6">
                                     <div class="input-group">
                                         <input type="time"
-                                            :disabled="!(edit_mode && has_cap('cap-produccion') && (data.status == 2 || data.status == 3)) || originalTimes[index].time_init"
+                                            :disabled="!(edit_mode && has_cap('cap-produccion') && parseInt(data.status) === 2) || !!originalTimes[index].time_init"
                                             v-model="e.time_init"
                                             class="form-control form-control-sm defblue1"
                                         />
@@ -133,17 +134,26 @@
                     <div class="row">
                         <div class="col-12 col-md-6">
                             <div class="row">
-                                <div  div class="col-12 col-md-6">
+                                <div class="col-12 col-md-6">
                                     <span class="fw-bold">FECHA DE FINALIZACIÓN</span>
                                 </div>
                                 <div class="col-12 col-md-6">
                                     <div class="input-group date">
+                                        <!-- <input
+                                            type="date"
+                                            placeholder="DD/MM/AAAA"
+                                            v-model="e.date_end"
+                                            :disabled="!(edit_mode && has_cap('cap-produccion') && parseInt(data.status) === 3 && e.date_init && e.time_init)"
+                                            class="form-control form-control-sm defblue1"
+                                            @focus="autoFillDateTime(index, 'end')"
+                                        /> -->
                                         <input
                                             type="date"
                                             placeholder="DD/MM/AAAA"
                                             v-model="e.date_end"
-                                            :disabled="!(has_cap('cap-produccion') && data.status == 3 && edit_mode) || originalTimes[index].date_end"
+                                            :disabled="!(edit_mode && has_cap('cap-produccion') && data.verificacion_lote == 1)"
                                             class="form-control form-control-sm defblue1"
+                                            @focus="autoFillDateTime(index, 'end')"
                                         />
 
                                         <!-- <input type="text"
@@ -169,9 +179,15 @@
                                 </div>
                                 <div class="col-12 col-md-6">
                                     <div class="input-group">
+                                        <!-- <input
+                                            type="time"
+                                            :disabled="!(edit_mode && has_cap('cap-produccion') && parseInt(data.status) === 3 && e.date_init && e.time_init)"
+                                            v-model="e.time_end"
+                                            class="form-control form-control-sm defblue1"
+                                        /> -->
                                         <input
                                             type="time"
-                                            :disabled="!(has_cap('cap-produccion') && data.status == 3 && edit_mode) || originalTimes[index].time_end"
+                                            :disabled="!(edit_mode && has_cap('cap-produccion') && data.verificacion_lote == 1)"
                                             v-model="e.time_end"
                                             class="form-control form-control-sm defblue1"
                                         />
@@ -251,35 +267,51 @@
                             <th>DESCRIPCIÓN</th>
                             <th>PROCESO</th>
                             <th>CANTIDAD REQUERIDA</th>
-                            <th>INVENTARIO</th>
+                            <th style="display: none;">INVENTARIO</th>
                             <th>UNI</th>
                             <th>ALM</th>
                             <th>LOTE <i class="bi bi-info-circle" style="cursor: pointer;" data-bs-toggle="tooltip" data-bs-placement="right" title='Escribe el primer número de lote y luego una "/" para el duplicado de lotes'></i></th>
                             <th>PRIMERA ENTREGA</th>
                             <th>SEGUNDA ENTREGA</th>
                             <th>DEVOLUCIÓN</th>
+                            <th v-if="parseInt(data.status) >= 3" class="text-center">RECIBIDO (RETORNO)</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <tr v-for="(e,index) of data.materials" :key="index">
+                        <tr v-for="(e,index) of data.materials" :key="'mat-' + e.material_id">
                             <td>{{e.code}}</td>
                             <td>{{e.description}}</td>
                             <td>{{e.process}}</td>
                             <td>{{e.required_amount}}</td>
-                            <td>{{e.stock}}</td>
+                            <td style="display: none;">{{e.stock}}</td>
                             <td>{{e.unit}}</td>
                             <td>{{e.almacen}}</td>
                             <td class="text-center">
-                                <input type="text" :disabled="!(edit_mode && (has_cap('cap-bodega') || has_cap('cap-supcalidad')) && data.status == 1)" v-model="e.lot1" @input="handleInputUppercase('lot1', index)"  @keydown="checkIfDuplicateLote($event,index)" style="width: 200px;" placeholder="Ingresar valor ..." class="form-control form-control-sm defblue1" />
+                                <input type="text" :disabled="!canEditLoteMaterial(e)" v-model="e.lot1" @input="handleInputUppercase('lot1', index)"  @keydown="checkIfDuplicateLote($event,index)" style="width: 200px;" placeholder="Ingresar valor ..." class="form-control form-control-sm defblue1" />
                             </td>
                             <td class="text-center">
-                                <input type="text" :disabled="!(edit_mode && (has_cap('cap-bodega') || has_cap('cap-supcalidad')) &&  data.status == 1)" v-model="e.entrega1"  style="width: 180px;" placeholder="Ingresar valor ..."  class="form-control form-control-sm defblue1"  @input="e.entrega1 = e.entrega1.replace(/[^0-9.]/g, '')" />
+                                <input type="text" :disabled="!canEditMaterialsField" v-model="e.entrega1"  style="width: 180px;" placeholder="Ingresar valor ..."  class="form-control form-control-sm defblue1"  @input="e.entrega1 = e.entrega1.replace(/[^0-9.]/g, '')" />
                             </td>
                             <td class="text-center">
-                                <input type="text" :disabled="!(edit_mode && (has_cap('cap-bodega') || has_cap('cap-supcalidad')) &&  data.status == 1)" v-model="e.entrega2"  style="width: 180px;" placeholder="Ingresar valor ..." class="form-control form-control-sm defblue1" @input="e.entrega2 = e.entrega2.replace(/[^0-9.]/g, '')" />
+                                <input type="text" :disabled="!canEditMaterialsField" v-model="e.entrega2"  style="width: 180px;" placeholder="Ingresar valor ..." class="form-control form-control-sm defblue1" @input="e.entrega2 = e.entrega2.replace(/[^0-9.]/g, '')" />
                             </td>
                             <td class="text-center">
-                                <input type="text" :disabled="!(edit_mode && (has_cap('cap-bodega') || has_cap('cap-supcalidad')) &&  data.status == 1)" v-model="e.return"  style="width: 180px;" placeholder="Ingresar valor ..." class="form-control form-control-sm defblue1" @input="e.return = e.return.replace(/[^0-9.]/g, '')" />
+                                <input type="text" :disabled="!canEditReturnField || isReturnReceived(e.material_id) || (e.process && e.process.toUpperCase() === 'COSTEO')" v-model="e.return"  style="width: 180px;" placeholder="Ingresar valor ..." class="form-control form-control-sm defblue1" @input="e.return = e.return.replace(/[^0-9.]/g, '')" />
+                            </td>
+                            <td v-if="parseInt(data.status) >= 3" class="text-center">
+                                <div v-if="parseFloat(e.return) > 0" class="d-flex align-items-center justify-content-center">
+                                    <input 
+                                        class="form-check-input border-dark" 
+                                        type="checkbox" 
+                                        :disabled="!has_cap('cap-bodega') || !edit_mode_recepcion || isReturnReceived(e.material_id)"
+                                        :checked="isReturnReceived(e.material_id)"
+                                        @change="toggleReturnReceive(e, e.material_id, $event.target.checked)"
+                                        style="width: 1.2rem; height: 1.2rem;"
+                                    />
+                                    <span v-if="getReturnSign(e.material_id)" class="ms-2 small">
+                                        {{ getReturnSign(e.material_id) }}
+                                    </span>
+                                </div>
                             </td>
                         </tr>
                     </tbody>
@@ -287,7 +319,7 @@
             </div>
 
             <h6 class="px-3 fw-bold mt-6">OBSERVACIONES</h6>
-            <textarea  :disabled="data.status == 4 || data.status == 1 || !((has_cap('cap-produccion') || has_cap('cap-auxcontrol-calidad')) && edit_mode)" v-model="data.observations" placeholder="OBSERVACIONES: " class="form-control defblue1" rows="2"></textarea>
+            <textarea  :disabled="data.status == 4 || data.status == 1 || !((has_cap('cap-produccion') || has_cap('cap-auxcontrol-calidad') || has_cap('cap-bodega')) && edit_mode)" v-model="data.observations" placeholder="OBSERVACIONES: " class="form-control defblue1" rows="6"></textarea>
 
             <h6 class="px-3 fw-bold mt-6">PROCEDIMIENTO DE LLENADO Y EMPAQUE (Ver Hoja de verificación de envasado y empacado de sachet)</h6>
             <p class="px-3">Para Envases Flexibles: verificar que todos los insumos estén completos para el llenado del producto, mezclado y material de empaque, para el caso de sachet, el laminado aprobado previamente se ajusta en máquina y se procede al envasado, posteriormente se empaca en las cajas según contenido especificado.
@@ -297,79 +329,65 @@
             <div class="separator1 mb-2"></div>
             <!--START BLOQUE DE REPETICION-->
             <div class="row mt-2" v-for="(eg,index) of data.entregas" :key=" 'en' + index">
-                <div class="col-12 col-md-3">
-                <div class="row">
-                    <div class="col-5">
-                        FECHA:
-                    </div>
-                    <div class="col-7">
-                        <input 
-                            :id="'entrega-fec-'+index" 
-                            type="text"
-                            v-mask="'##/##/####'"
-                            disabled
-                            placeholder="DD/MM/YYYY"
-                            class="form-control form-control-sm defblue1" 
-                            v-model="eg.date" 
-                        />
+                
+                <div class="col-12 col-xl">
+                    <div class="row">
+                        <div class="col-12 col-xxl-5 mb-1 mb-xxl-0" style="font-size: 0.85em;">FECHA</div>
+                        <div class="col-12 col-xxl-7">
+                            <input :id="'entrega-fec-'+index" type="text" v-mask="'##/##/####'" disabled placeholder="DD/MM/YYYY" class="form-control form-control-sm defblue1" v-model="eg.date" />
+                        </div>
                     </div>
                 </div>
-            </div>
-            <div class="col-12 col-md-3">
-                <div class="row">
-                    <div class="col-5">
-                        CANTIDAD
-                    </div>
-                    <div class="col-7">
-                        <input 
-                            type="text"
-                            :disabled="!canEditEntrega(index) || isFieldLocked(index, 'cantidad')"
-                            placeholder="..." 
-                            class="form-control form-control-sm defblue1"  
-                            v-model="eg.cantidad"
-                        />
+
+                <div class="col-12 col-xl">
+                    <div class="row">
+                        <div class="col-12 col-xxl-5 mb-1 mb-xxl-0" style="font-size: 0.85em;">CANT (C/U)</div>
+                        <div class="col-12 col-xxl-7">
+                            <div class="d-flex align-items-center">
+                                <input type="number" :disabled="!canEditCantidad(index)" placeholder="Cajas" class="form-control form-control-sm defblue1 me-1" :value="getPart(eg.cantidad, 0)" @input="updateCompositeField(index, 'cantidad', 0, $event.target.value)" style="width: 50%" />
+                                <input type="number" :disabled="!canEditCantidad(index)" placeholder="Unid" class="form-control form-control-sm defblue1 ms-1" :value="getPart(eg.cantidad, 1)" @input="updateCompositeField(index, 'cantidad', 1, $event.target.value)" style="width: 50%" />
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </div>
-            <div class="col-12 col-md-3">
-                <div class="row">
-                    <div class="col-5">
-                        ENTREGADO
-                    </div>
-                    <div class="col-7">
-                        <input 
-                            :id="'entrega-entregado-'+index" 
-                            type="text"
-                            disabled
-                            placeholder="..." 
-                            class="form-control form-control-sm defblue1" 
-                            v-model="eg.entrega"
-                        />
+
+                <div class="col-12 col-xl">
+                    <div class="row">
+                        <div class="col-12 col-xxl-5 mb-1 mb-xxl-0" style="font-size: 0.85em;">ENTREGADO</div>
+                        <div class="col-12 col-xxl-7">
+                            <input :id="'entrega-entregado-'+index" type="text" disabled placeholder="..." class="form-control form-control-sm defblue1" v-model="eg.entrega" />
+                        </div>
                     </div>
                 </div>
-            </div>
-            <div class="col-12 col-md-3">
-                <div class="row">
-                    <div class="col-5">
-                        RECIBIDO
-                    </div>
-                    <div class="col-7">
-                        <input 
-                            type="text"
-                            :disabled="!canEditEntrega(index) || isFieldLocked(index, 'recibe')"
-                            placeholder="..." 
-                            class="form-control form-control-sm defblue1" 
-                            v-model="eg.recibe"
-                        />
+
+                <div class="col-12 col-xl">
+                    <div class="row">
+                        <div class="col-12 col-xxl-5 mb-1 mb-xxl-0" style="font-size: 0.85em;">RECIB (C/U)</div>
+                        <div class="col-12 col-xxl-7">
+                            <div class="d-flex align-items-center">
+                                <input type="number" :disabled="!canEditRecibido(index)" placeholder="Cajas" class="form-control form-control-sm defblue1 me-1" :value="getPart(eg.recibe, 0)" @input="updateCompositeField(index, 'recibe', 0, $event.target.value)" style="width: 50%" />
+                                <input type="number" :disabled="!canEditRecibido(index)" placeholder="Unid" class="form-control form-control-sm defblue1 ms-1" :value="getPart(eg.recibe, 1)" @input="updateCompositeField(index, 'recibe', 1, $event.target.value)" style="width: 50%" />
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </div>
-                <div class="col-12 text-end">
-                    <!-- Opcional: botón para eliminar -->
+
+                <div class="col-12 col-xl">
+                    <div class="row">
+                        <div class="col-12 col-xxl-4 mb-1 mb-xxl-0" style="font-size: 0.85em;">FIRMA</div>
+                        <div class="col-12 col-xxl-8">
+                            <div class="d-flex align-items-center">
+                                <input class="form-check-input border-dark m-0 me-2" type="checkbox" :id="'bodegapt-check-'+index" 
+                                    :disabled="edit_end || parseInt(data.status) >= 4 || !edit_mode_bodegapt || !eg.cantidad || !eg.recibe || (eg.firma_bodegapt && originalEntregas[index] && originalEntregas[index].firma_bodegapt)" 
+                                    :checked="eg.firma_bodegapt"
+                                    @change="toggleBodegaptFirma(index, $event.target.checked)"
+                                    style="width: 1.2rem; height: 1.2rem; flex-shrink: 0;" />
+                                <input type="text" disabled placeholder="Pendiente" class="form-control form-control-sm defblue1 flex-grow-1" :value="eg.firma_bodegapt" />
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <div class="col-12 text-end">
-                    <!-- <a href="javascript:void(0);" v-if="(has_cap('cap-produccion') && data.status == 3 && edit_mode)" @click="removeEntregasItem(index)" class="text-danger"><u>Eliminar ítem</u></a> -->
-                </div>
+
             </div>
             <!--END BLOQUE DE REPETICION-->
             <div class="text-center mt-3">
@@ -383,7 +401,7 @@
                     <label for="">ENTREGADO BODEGA</label>
                 </div>
                 <div class="col-12 col-md-4 text-center">
-                    <input disabled="true" :value="data.auditor.user_autoriza" type="text" class="form-control form-control-sm text-center d-block defblue1">
+                    <input disabled="true" :value="data.status >= 3 ? data.auditor.user_autoriza : null" type="text" class="form-control form-control-sm text-center d-block defblue1">
                     <label for="">AUTORIZADO</label>
                 </div>
                 <div class="col-12 col-md-4 text-center">
@@ -391,6 +409,33 @@
                     <label for="">RECIBIDO PRODUCCION</label>
                 </div>
             </div>
+            
+            <div class="modal fade" id="confirmSignModal" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">{{ confirmModal.title }}</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                    </div>
+
+                    <div class="modal-body">
+                        <p class="mb-0">{{ confirmModal.message }}</p>
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal" :disabled="confirmModal.loading">
+                        Cancelar
+                        </button>
+
+                        <button type="button" class="btn btn-info" @click="confirmAndSign" :disabled="confirmModal.loading">
+                        <span v-if="confirmModal.loading" class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                        Confirmar
+                        </button>
+                    </div>
+                    </div>
+                </div>
+                </div>
+
 
 
             <div class="text-end mt-6">
@@ -403,12 +448,14 @@
                    <button
                         type="button"
                         v-if="canEdit && !edit_mode"
+                        :disabled="data.verificacion_lote == 1 && has_cap('cap-bodega') && !has_cap('cap-produccion')"
                         @click="edit_mode = true;"
                         class="btn btn-primary"
                         >
                         Modificar
                     </button>
 
+                    <!-- boton guardar -->
                     <button 
                         type="button" 
                         v-if="edit_mode && canShowSaveButton" 
@@ -430,14 +477,40 @@
                     <!-- <button type="button" v-if="edit_mode && data.status == 2 && has_cap('cap-supcalidad')" @click="authorize" class="btn btn-success">Guardar</button>                 -->
 
                     <!-- <button type="button"  v-if="canEdit2 && !edit_mode" @click="edit_mode = true" class="btn btn-warning">Modificar</button> -->
-                    <button type="button"  v-if="edit_mode == false && data.status == 2 && has_cap('cap-auxcontrol-calidad')"  @click="edit_mode = true" class="btn btn-primary">Modificar</button> <!--Este boton le aparece a rol de auxcontrol-calidad-->
-                    <button type="button"  v-if="edit_mode == false && data.status == 3 && has_cap('cap-produccion')" @click="edit_mode = true" class="btn btn-primary">Modificar</button> <!--Este boton le aparece a rol de produccion en el ultimo paso-->
+
                     <button type="button" v-if="edit_mode && data.status == 3 && has_cap('cap-produccion')" @click="updateTracking" class="btn btn-success">Guardar</button>
                     
-                    <button type="button" v-if="edit_mode == false && data.status == 2 && has_cap('cap-auxcontrol-calidad')"  :disabled="data.verificacion_lote == 0" @click="authorize" class="btn btn-success">Autorizar</button>
+                    <button type="button" v-if="edit_mode == false && data.status == 2 && has_cap('cap-auxcontrol-calidad')"  :disabled="data.verificacion_lote == 0 || !hasAtLeastOneInitTime" @click="authorize" class="btn btn-success">Autorizar</button>
 
-                    <button type="button" v-if="edit_end == false && edit_mode == false && data.status == 3 && has_cap('cap-produccion')" @click="preFinish" class="btn btn-success">Finalizar</button>
+                    <button type="button" v-if="edit_end == false && edit_mode == false && edit_mode_bodegapt == false && parseInt(data.status) === 3 && has_cap('cap-produccion') && readyToFinalize" :disabled="data.auditor && data.auditor.devolucion_entregada == 1 && hasUnsignedReturns" @click="preFinish" class="btn btn-success">Finalizar</button>
                     <button type="button" v-if="edit_end && data.status == 3 && has_cap('cap-produccion')" @click="finishOrder" class="btn btn-success">Confirmar</button>
+
+                    <!-- Botón: Producción entrega devoluciones (opcional, status=3) -->
+                    <button
+                        type="button"
+                        v-if="parseInt(data.status) === 3 && has_cap('cap-produccion') && data.auditor.devolucion_entregada == 0 && hasUnsignedReturns && !edit_mode"
+                        @click="entregarDevolucion"
+                        class="btn btn-info"
+                    >Entrega Devolución</button>
+
+
+                    <!-- Botones exclusivos para Bodega PT: editar Recibidos -->
+                    <button
+                        type="button"
+                        v-if="has_cap('cap-bodegapt') && !edit_mode_bodegapt && parseInt(data.status) == 3 && !allBodegaPtSigned"
+                        @click="edit_mode_bodegapt = true"
+                        class="btn btn-warning"
+                    >
+                        Modificar Recibidos
+                    </button>
+                    <button
+                        type="button"
+                        v-if="has_cap('cap-bodegapt') && edit_mode_bodegapt"
+                        @click="saveBodegaPT"
+                        class="btn btn-success"
+                    >
+                        Guardar Recibidos
+                    </button>
                     <!-- Botón Verificar / Estado -->
                     <button
                         type="button"
@@ -461,6 +534,45 @@
                     </button>
 
 
+
+                    <button
+                        type="button"
+                        v-if="has_cap('cap-bodega') && data.status >= 1 && data.status < 4 && !data.auditor.user_entrega"
+                        :disabled="data.verificacion_lote != 1"
+                        @click="openConfirmModal('entrega')"
+                        class="btn btn-info"
+                        >
+                        Entregar Materiales
+                    </button>
+
+                    <!-- Recibir Materiales: firma global de producción (solo si no recibió aún) -->
+                    <button
+                        type="button"
+                        v-if="has_cap('cap-produccion') && data.status >= 1 && data.status < 4 && !data.auditor.user_recibe"
+                        :disabled="!data.auditor.user_entrega"
+                        @click="openConfirmModal('recibe')"
+                        class="btn btn-info">
+                        Recibir Materiales
+                    </button>
+
+                    <!-- Botón: Bodega activa modo recepción de devoluciones individuales -->
+                    <button
+                        type="button"
+                        v-if="has_cap('cap-bodega') && parseInt(data.status) === 3 && showRecepcionButtons && !edit_mode_recepcion"
+                        @click="edit_mode_recepcion = true"
+                        class="btn btn-warning">
+                        Recibir Devoluciones
+                    </button>
+
+                    <!-- Botón: Cancelar modo recepción (mientras no se hayan firmado todos) -->
+                    <button
+                        type="button"
+                        v-if="has_cap('cap-bodega') && parseInt(data.status) === 3 && edit_mode_recepcion && !allReturnsReceived"
+                        @click="edit_mode_recepcion = false"
+                        class="btn btn-outline-secondary">
+                        Cancelar Recepción
+                    </button>
+
                 </div>
             </div>
 
@@ -470,7 +582,7 @@
 </template>
 
 <script>
-    const {upsertOrderPacking,authorizePacking,updateTracking,finishPacking, obtenerLotePorOrden, verifyPackingLot, getPackingOrderDB, getUXCByOrder} = require("../service.js");
+    const {upsertOrderPacking,authorizePacking,updateTracking,finishPacking, obtenerLotePorOrden, verifyPackingLot, getPackingOrderDB, getUXCByOrder, signPackingOrder, entregarDevolucionPacking, recibirDevolucionPacking, saveReturnReceiptPacking} = require("../service.js");
     const {formatPackingDB,getJSONTimes,getJSONOperarios,getJSONEntregas} = require("../helpers.js");
 
 
@@ -492,11 +604,21 @@ import moment from 'moment';
                     F2: false
                 },
                 edit_mode: false,
+                edit_mode_bodegapt: false, // flag independiente para cap-bodegapt
+                edit_mode_recepcion: false, // flag para habilitar checkboxes de recepción de devoluciones
                 edit_end: false,//para campos antes de cierre de orden
                 originalTimes: [],
                 originalOperarios: [],
                 originalEntregas: [],
-                verifying: false
+                lockedEntregas: [], // 🔒 Locks en memoria para bloqueo inmediato
+                verifying: false,
+                confirmModal: {
+                type: null,     // 'entrega' | 'recibe'
+                title: '',
+                message: '',
+                loading: false,
+                instance: null, // bootstrap modal instance
+                },
             }
         },
         mounted() {
@@ -504,32 +626,54 @@ import moment from 'moment';
         this.reloadOriginalTimes();
         this.reloadOriginalOperarios();
         this.reloadOriginalEntregas();
+        this.initializeLockedEntregas(); // 🔒 Inicializar locks en memoria
         this.checkIfEndDateFilled();
            this.$nextTick(() => {
                 this.initDatepickers(); // Espera a que Vue haya terminado de renderizar
             });
         // 🔹 Sincronizar fechas al inicio
         // this.syncEndDatesWithOperarios();
-           
+            // Inicializa el modal (Bootstrap 5)
+            const el = document.getElementById('confirmSignModal');
+            if (el && window.bootstrap) {
+                this.confirmModal.instance = new window.bootstrap.Modal(el, { backdrop: 'static', keyboard: false });
+            }
         },
         computed: {
-            // canEdit() {
-            //     const isEditableStatus = this.data.status === 1 || this.data.status === 2;
-            //     const hasMainCaps = this.has_cap('cap-supcalidad') || this.has_cap('cap-produccion') || this.has_cap('cap-auxcontrol-calidad');
-            //     const bodegaCondition = this.data.status === 2 && this.has_cap('cap-bodega');
-
-            //     return (isEditableStatus && hasMainCaps) || bodegaCondition;
-            // }
+            allBodegaPtSigned() {
+                if (!this.data.entregas || !Array.isArray(this.data.entregas)) return false;
+                if (this.data.entregas.length === 0) return false;
+                
+                // Considerar solo las filas que han sido llenadas con cantidad y recibido
+                const entregasLlenas = this.data.entregas.filter(eg => eg.cantidad && eg.recibe);
+                
+                // Si aún no hay nada que firmar, el botón debe verse (para que puedan llenar los recibidos)
+                if (entregasLlenas.length === 0) return false;
+                
+                // Retorna true si TODAS las entregas llenas han sido firmadas por bodega PT
+                return entregasLlenas.every(eg => eg.firma_bodegapt && eg.firma_bodegapt.trim() !== '');
+            },
             canEdit() {
-                // Estado 1: solo bodega
-                if (this.data.status === 1) {
-                    return this.has_cap('cap-bodega');
+                // Estado <= 3: Bodega puede editar
+                if (this.data.status <= 3 && this.has_cap('cap-bodega')) {
+                    return true;
                 }
                 
-                // Estado 2: solo producción
-                if (this.data.status === 2) {
-                    return this.has_cap('cap-produccion');
+                // Producción puede editar (en estado 2 o 3) SOLO si ya se entregó y recibió materiales
+                if (this.has_cap('cap-produccion') && (this.data.status === 2 || this.data.status === 3)) {
+                    if (this.data.auditor.user_entrega && this.data.auditor.user_recibe) {
+                        return true;
+                    }
                 }
+
+                // Otros roles autorizados para modificar en estados iniciales (Supervisor, Auxiliar)
+                if (this.data.status === 1 || this.data.status === 2) {
+                    if (this.has_cap('cap-supcalidad') || this.has_cap('cap-auxcontrol-calidad')) {
+                        return true;
+                    }
+                }
+
+                return false;
             },
             canEdit2() {
                 // Para otros estados, mantener la lógica original
@@ -537,19 +681,108 @@ import moment from 'moment';
                 return (this.data.status === 3 || this.data.status === 4) && hasMainCaps;
             },
             canShowSaveButton() {
-                // Estado 1: solo bodega
-                if (this.data.status === 1 && this.has_cap('cap-bodega')) {
+                // Estado <= 3: solo bodega
+                if (this.data.status <= 3 && this.has_cap('cap-bodega')) {
                     return true;
                 }
                 
-                // Estado 2: solo producción
-                if (this.data.status === 2 && this.has_cap('cap-produccion')) {
-                    return true;
+                // Producción en status 3 usa su propio botón (updateTracking), no este
+                // Producción solo puede usar este botón en status 2 (antes de autorización)
+                if (this.has_cap('cap-produccion') && this.data.status === 2) {
+                    if (this.data.auditor.user_entrega && this.data.auditor.user_recibe) {
+                        return true;
+                    }
                 }
                 
                 // Otros casos para supcalidad y auxcontrol-calidad (manteniendo la lógica original)
                 return (this.data.status == 1 || this.data.status == 2) && 
                     (this.has_cap('cap-supcalidad') || this.has_cap('cap-auxcontrol-calidad'));
+            },
+            canEditMaterialsField() {
+                 // Solo permitir edición si el estado es menor a 4 (no finalizado)
+                 if (this.data.status >= 4) {
+                     return false;
+                 }
+                 
+                 return this.edit_mode && (
+                    (this.has_cap('cap-bodega') && this.data.status <= 3) ||
+                    (this.has_cap('cap-supcalidad') && this.data.status == 1)
+                 );
+            },
+            canEditReturnField() {
+                 if (this.data.status >= 4) {
+                     return false;
+                 }
+                 // Si Producción ya entregó sus devoluciones a Bodega, se bloquea la edición de cantidades
+                 if (this.data.auditor && this.data.auditor.devolucion_entregada == 1) {
+                     return false;
+                 }
+                 return this.edit_mode && this.has_cap('cap-produccion');
+            },
+            hasAtLeastOneInitTime() {
+                if (!this.data.times || this.data.times.length === 0) return false;
+                return this.data.times.some(t => t.date_init && t.time_init);
+            },
+            hasUnsignedReturns() {
+                if (!this.data.materials) return false;
+                return this.data.materials.some((mat) => {
+                    const returnQty = parseFloat(mat.return || 0);
+                    return returnQty > 0 && !this.isReturnReceived(mat.material_id);
+                });
+            },
+            // Verdadero si todos los materiales con devolución > 0 ya están firmados
+            allReturnsReceived() {
+                if (!this.data.materials) return true;
+                const withReturn = this.data.materials.filter(mat => parseFloat(mat.return || 0) > 0);
+                if (withReturn.length === 0) return true; // No hay devoluciones, no aplica
+                return withReturn.every(mat => this.isReturnReceived(mat.material_id));
+            },
+            // Mostrar botones de recepción: solo cuando hay materiales con devolución y no todos están firmados
+            showRecepcionButtons() {
+                if (!this.data.materials) return false;
+                const withReturn = this.data.materials.filter(mat => parseFloat(mat.return || 0) > 0);
+                if (withReturn.length === 0) return false;
+                return !this.allReturnsReceived;
+            },
+            readyToFinalize() {
+                if (!this.data.times || !this.data.entregas || !this.data.materials) return false;
+                
+                // 1. Bloquear si hay un ciclo de entrega de devoluciones pendiente de firma global, pero OMITIR ESTE BLOQUEO
+                // si los checkboxes individuales de devolución ya fueron marcados, porque de lo contrario
+                // la orden se queda bloqueada para siempre (ya que el botón azul global no existe más)
+                if (this.data.auditor && this.data.auditor.devolucion_entregada == 1 && this.hasUnsignedReturns) {
+                    return false;
+                }
+
+                let finishedCount = 0;
+                for (let i = 0; i < this.data.times.length; i++) {
+                    const time = this.data.times[i];
+                    if (time.date_end && time.time_end) {
+                        finishedCount++;
+                        const eg = this.data.entregas[i];
+                        
+                        // Firma de recibido
+                        if (!eg || !eg.firma_bodegapt || eg.firma_bodegapt.trim() === '') {
+                            return false;
+                        }
+                        
+                        // Cantidad (entregas llenas)
+                        if (!eg.cantidad) return false;
+                        const parts = eg.cantidad.split('/');
+                        const hasCajas = parts[0] && parts[0].trim() !== '';
+                        const hasUnid = parts[1] && parts[1].trim() !== '';
+                        
+                        // Si no tiene ni cajas ni unidades, no está llena
+                        if (!hasCajas && !hasUnid) return false;
+                    }
+                }
+
+                // 2. VALIDACIÓN: Devoluciones recibidas (individualmente)
+                if (this.hasUnsignedReturns) {
+                    return false;
+                }
+                
+                return finishedCount > 0;
             }
         },
         created: function(){
@@ -560,6 +793,15 @@ import moment from 'moment';
             // }
         },
         methods: {
+            canEditLoteMaterial(e) {
+                if (parseInt(this.data.status) >= 4) return false;
+                if (this.canEditMaterialsField) return true;
+                let isCosteo = e.process && e.process.toUpperCase() === 'COSTEO';
+                if (this.edit_mode && isCosteo) {
+                    return true;
+                }
+                return false;
+            },
             // syncEndDatesWithOperarios() {
             //         if (this.data.times && this.data.operarios) {
             //             this.data.times.forEach((t, index) => {
@@ -569,40 +811,160 @@ import moment from 'moment';
             //             });
             //         }
             // },
+            canEditCantidad(index) {
+                // Orden finalizada: todo bloqueado
+                if (parseInt(this.data.status) >= 4) return false;
+
+                // La entrega solo se habilita si la línea de tiempo correspondiente tiene fecha de finalización
+                const time = this.data.times && this.data.times[index];
+                if (!time || !time.date_end) return false;
+
+                // Bloquear estrictamente si Producción está en la fase de finalización / confirmación ("preFinish" -> edit_end = true)
+                if (this.edit_end) return false;
+
+                if (!this.edit_mode) return false;
+
+                const status = parseInt(this.data.status);
+
+                // Permitir si es Producción y status <= 3
+                return this.has_cap('cap-produccion') && status <= 3;
+            },
+
+            canEditRecibido(index) {
+                // "Recibido" es exclusivo de cap-bodegapt
+                if (!this.has_cap('cap-bodegapt')) return false;
+
+                // La entrega solo se habilita si la línea de tiempo tiene fecha de finalización
+                const time = this.data.times && this.data.times[index];
+                if (!time || !time.date_end) return false;
+
+                const status = parseInt(this.data.status);
+
+                // En status 4 (finalizada): solo permitir si edit_mode_bodegapt está activo
+                if (status >= 4) {
+                    return this.edit_mode_bodegapt;
+                }
+
+                // En status <= 3: permitir con edit_mode, edit_end o edit_mode_bodegapt
+                return this.edit_mode || this.edit_mode_bodegapt;
+            },
+
+            getPart(value, partIndex) {
+                if (!value && value !== 0) return ''; // Permite valor 0
+                const parts = String(value).split('/');
+                return parts[partIndex] || '';
+            },
+            updateCompositeField(index, field, partIndex, newValue) {
+                let currentValue = this.data.entregas[index][field];
+                if (currentValue === null || currentValue === undefined) currentValue = '';
+                
+                let parts = String(currentValue).split('/');
+                if (parts.length < 2) parts = [parts[0] || '', ''];
+                
+                // Guardar el valor anterior ANTES de actualizar (para comparar con recibe)
+                const oldPartValue = parts[partIndex];
+                
+                // Actualizar la parte correspondiente
+                parts[partIndex] = newValue;
+                this.data.entregas[index][field] = parts.join('/');
+
+                // 🔄 Sincronizar CANTIDAD → RECIBIDO si aún están en sintonía
+                if (field === 'cantidad') {
+                    let currentRecibe = this.data.entregas[index]['recibe'];
+                    if (currentRecibe === null || currentRecibe === undefined) currentRecibe = '';
+                    let recibeParts = String(currentRecibe).split('/');
+                    if (recibeParts.length < 2) recibeParts = [recibeParts[0] || '', ''];
+
+                    // Actualizar recibe si:
+                    // - Recibe está vacío (primera vez), O
+                    // - Recibe tiene el mismo valor que el ANTERIOR de cantidad (siguen en sincronía)
+                    if (!recibeParts[partIndex] || recibeParts[partIndex].trim() === '' || recibeParts[partIndex] === oldPartValue) {
+                        recibeParts[partIndex] = newValue;
+                        this.data.entregas[index]['recibe'] = recibeParts.join('/');
+                    }
+                }
+                
+                this.$forceUpdate(); 
+            },
+
+
+            // Auto-rellena fecha y hora con la fecha/hora actual si están vacías
+            // type: 'init' (por defecto) o 'end'
+            autoFillDateTime(index, type) {
+                const e = this.data.times[index];
+                if (type === 'end') {
+                    if (!e.date_end && !e.time_end) {
+                        const now = moment();
+                        e.date_end = now.format('YYYY-MM-DD');
+                        e.time_end = now.format('HH:mm');
+                        this.$forceUpdate();
+                    }
+                } else {
+                    if (!e.date_init && !e.time_init) {
+                        const now = moment();
+                        e.date_init = now.format('YYYY-MM-DD');
+                        e.time_init = now.format('HH:mm');
+                        this.$forceUpdate();
+                    }
+                }
+            },
+
             canEditEntrega(index) {
-                // Verificar permisos y estado
-                if (!this.has_cap('cap-produccion') || this.data.status != 3 || !this.edit_mode) {
-                    return false;
+
+                if (!this.edit_mode) return false;
+
+                let status = parseInt(this.data.status);
+
+                // Permitir a Bodega en estados <= 3
+                if (this.has_cap('cap-bodega') && status <= 3) {
+                     return true; 
                 }
 
-                // Verificar que exista el time correspondiente
-                if (!this.data.times || !this.data.times[index]) {
-                    return false;
+                // Verificar permisos y estado para Producción
+                if (this.has_cap('cap-produccion') && status == 3) {
+                    // Verificar que exista el time correspondiente
+                    if (!this.data.times || !this.data.times[index]) {
+                        return false;
+                    }
+
+                    const time = this.data.times[index];
+
+                    // Verificar que fecha y hora de inicio estén llenas
+                    const hasInit = time.date_init && time.date_init !== null && 
+                                time.time_init && time.time_init !== null;
+
+                    // Solo habilitar si (inicio) están llenos
+                    return hasInit;
                 }
 
-                const time = this.data.times[index];
-
-                // Verificar que fecha y hora de inicio estén llenas
-                const hasInit = time.date_init && time.date_init !== null && 
-                            time.time_init && time.time_init !== null;
-
-                // Verificar que fecha y hora de fin estén llenas
-                const hasEnd = time.date_end && time.date_end !== null && 
-                            time.time_end && time.time_end !== null;
-
-                // Solo habilitar si AMBOS (inicio Y fin) están llenos
-                return hasInit && hasEnd;
+                return false;
             },
             isFieldLocked(index, fieldName) {
-                // Verificar si el campo YA tenía valor en los datos ORIGINALES (guardados)
+                // Bloqueo total si la orden está finalizada
+                if (Number(this.data.status) >= 4) {
+                    return true; 
+                }
+
+                // Para Cantidad y Recibe, permitir edición hasta el final (status < 4)
+                if (fieldName === 'cantidad' || fieldName === 'recibe') {
+                    return false;
+                }
+
+                // 🔒 Para otros campos (como firmas), verificar locks en memoria (bloqueo inmediato)
+                if (this.lockedEntregas[index] && this.lockedEntregas[index][fieldName]) {
+                    return true;
+                }
+
+                // Verificar si existe el índice en los datos originales (bloqueo desde BD)
                 if (!this.originalEntregas || !this.originalEntregas[index]) {
                     return false;
                 }
 
                 const originalValue = this.originalEntregas[index][fieldName];
-                
-                // Bloquear solo si el campo original tenía un valor (no null, no vacío)
-                return originalValue !== null && originalValue !== undefined && originalValue !== '';
+                if (originalValue === null || originalValue === undefined) return false;
+
+                const strVal = String(originalValue).trim();
+                return strVal !== '';
             },
             // 1. MODIFICAR la inicialización de los datepickers para actualizar el modelo Vue
             initDatepickers() {
@@ -710,6 +1072,54 @@ import moment from 'moment';
             addEntregas: function (){
                 this.data.entregas.push(getJSONEntregas());
             },
+            openConfirmModal(type) {
+                this.confirmModal.type = type;
+
+                const isEntrega = type === 'entrega';
+                this.confirmModal.title = isEntrega ? 'Confirmar entrega' : 'Confirmar recepción';
+                this.confirmModal.message = isEntrega
+                    ? '¿Deseas confirmar la entrega de materiales? Esta acción quedará registrada.'
+                    : '¿Deseas confirmar la recepción de materiales? Esta acción quedará registrada.';
+
+                this.confirmModal.loading = false;
+
+                if (this.confirmModal.instance) this.confirmModal.instance.show();
+            },
+            async confirmAndSign() {
+                if (!this.confirmModal.type) return;
+
+                try {
+                this.confirmModal.loading = true;
+
+                // Ejecuta tu lógica actual
+                await this.signOrder(this.confirmModal.type);
+
+                // Cierra modal si todo ok (tu signOrder ya muestra mensajes)
+                if (this.confirmModal.instance) this.confirmModal.instance.hide();
+                } finally {
+                this.confirmModal.loading = false;
+                this.confirmModal.type = null;
+                }
+            },
+            async signOrder(type) {
+                try {
+                const response = await signPackingOrder(this.data.order_id, type);
+
+                if (response.data.code === 1) {
+                    StatusHandler.ValidationMsg("Firmado correctamente");
+
+                    // Actualizar localmente para reflejar el cambio inmediato
+                    if (type === 'entrega') this.data.auditor.user_entrega = response.data.data.user_entrega;
+                    if (type === 'recibe') this.data.auditor.user_recibe = response.data.data.user_recibe;
+
+                    this.$forceUpdate();
+                } else {
+                    StatusHandler.ValidationMsg(response.data.msg);
+                }
+                } catch (e) {
+                StatusHandler.Exception("Error al firmar", e);
+                }
+            },
             removeEntregasItem: async function(index){
                 if(this.data.entregas.length == 1){
                     StatusHandler.ValidationMsg("Se requiere al menos un item de entregas");
@@ -791,12 +1201,71 @@ import moment from 'moment';
                     // Actualizamos el modelo local (usando tu helper)
                     this.data = formatPackingDB(response.data);
                     this.edit_mode = false;
+                    
+                    // 🔒 Reinicializar locks después de guardar
+                    this.reloadOriginalTimes();
+                    this.reloadOriginalOperarios();
+                    this.reloadOriginalEntregas();
+                    this.initializeLockedEntregas();
 
                     StatusHandler.LClose();
                     StatusHandler.ShowStatus("Guardado Existoso!", StatusHandler.OPERATION.CREATE, StatusHandler.STATUS.SUCCESS);
                 } catch(ex) {
                     StatusHandler.LClose();
                     StatusHandler.Exception("Guardar orden", ex);
+                }
+            },
+
+            saveBodegaPT: async function() {
+                // Validación: verificar si los inputs de 'recibe' (Cajas/Unid) están vacíos 
+                // para los ítems que se están intentando firmar o guardar
+                let hasEmptyRecibe = false;
+                for (let i = 0; i < this.data.entregas.length; i++) {
+                    let eg = this.data.entregas[i];
+                    // Validamos específicamente las filas que han sido firmadas en este momento
+                    if (eg.firma_bodegapt) {
+                        const r = eg.recibe || "";
+                        const parts = r.split('/');
+                        const cajas = parts[0] ? parts[0].trim() : "";
+                        const unid = parts[1] ? parts[1].trim() : "";
+                        
+                        if (cajas === "" && unid === "") {
+                            hasEmptyRecibe = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (hasEmptyRecibe) {
+                    StatusHandler.ValidationMsg("No se puede guardar: Debe llenar los campos de RECIB (C/U) para las entregas que tengan Firma.");
+                    return;
+                }
+
+                var confirm = await StatusHandler.Confirm("¿Confirmar guardado de recibidos?", "");
+                if (!confirm) return;
+
+                StatusHandler.LShow();
+                try {
+                    const result = await upsertOrderPacking(this.data);
+                    const response = result.data;
+                    if (response.code == 0) {
+                        StatusHandler.ShowStatus(response.msg, StatusHandler.OPERATION.DEFAULT, StatusHandler.STATUS.FAIL);
+                        return;
+                    }
+
+                    this.data = formatPackingDB(response.data);
+                    this.edit_mode_bodegapt = false;
+
+                    this.reloadOriginalTimes();
+                    this.reloadOriginalOperarios();
+                    this.reloadOriginalEntregas();
+                    this.initializeLockedEntregas();
+
+                    StatusHandler.LClose();
+                    StatusHandler.ShowStatus("Recibidos guardados exitosamente!", StatusHandler.OPERATION.CREATE, StatusHandler.STATUS.SUCCESS);
+                } catch (ex) {
+                    StatusHandler.LClose();
+                    StatusHandler.Exception("Guardar recibidos", ex);
                 }
             },
 
@@ -849,6 +1318,7 @@ import moment from 'moment';
                 this.reloadOriginalTimes();
                 this.reloadOriginalOperarios();
                 this.reloadOriginalEntregas();
+                this.initializeLockedEntregas(); // 🔒 Reinicializar locks
 
                 StatusHandler.LClose();
                 StatusHandler.ShowStatus(
@@ -888,6 +1358,12 @@ import moment from 'moment';
                     }
 
                     this.data = formatPackingDB(response.data);
+                    
+                    // 🔒 Reinicializar locks después de autorizar
+                    this.reloadOriginalTimes();
+                    this.reloadOriginalOperarios();
+                    this.reloadOriginalEntregas();
+                    this.initializeLockedEntregas();
 
                     // StatusHandler.LClose();
                     StatusHandler.ShowStatus("Aprobado con exito!",StatusHandler.OPERATION.CREATE,StatusHandler.STATUS.SUCCESS);
@@ -951,7 +1427,8 @@ import moment from 'moment';
                     return;
                 }
                 // ✅ Asignar firma si corresponde
-                this.checkIfStartDateFilled();
+                // (Se ha eliminado la llamada automática a checkIfStartDateFilled según petición)
+                // this.checkIfStartDateFilled();
                 // DEBUG: Log time data before sending
                 console.log("Times data before save:", JSON.stringify(this.data.times));
 
@@ -959,10 +1436,12 @@ import moment from 'moment';
                     times: JSON.stringify(this.data.times),
                     operarios: JSON.stringify(this.data.operarios),
                     entregas: JSON.stringify(this.data.entregas),
-                    // performance_teorico: this.data.total_units,
+                    materials: JSON.stringify(this.data.materials),
+                    recepcion_retorno_json: JSON.stringify(this.data.recepcion_retorno_json || {}),
                     performance: this.data.performance,
                     observations: this.data.observations
                 }
+                console.log("Saving order data, recepcion_retorno_json:", data_send.recepcion_retorno_json);
 
                 StatusHandler.LShow();
                 updateTracking(this.data.order_id, data_send).then(result=>{
@@ -977,6 +1456,7 @@ import moment from 'moment';
                     this.reloadOriginalTimes();
                     this.reloadOriginalOperarios();
                     this.reloadOriginalEntregas();
+                    this.initializeLockedEntregas(); // 🔒 Reinicializar locks después de guardar
                     StatusHandler.LClose();
                     StatusHandler.ShowStatus("Modificado con exito!", StatusHandler.OPERATION.CREATE, StatusHandler.STATUS.SUCCESS);
                 }).catch(ex=>{
@@ -1041,6 +1521,31 @@ import moment from 'moment';
             // },
 
             preFinish: async function() {
+                // Validación: Checar firmas de recibido en base a fechas/horas de finalización
+                if (this.data.times && this.data.entregas) {
+                    for (let i = 0; i < this.data.times.length; i++) {
+                        const time = this.data.times[i];
+                        if (time.date_end && time.time_end) {
+                            const eg = this.data.entregas[i];
+                            if (!eg || !eg.firma_bodegapt || eg.firma_bodegapt.trim() === '') {
+                                StatusHandler.ValidationMsg("Debe de chequear las firmas de recibido; se detectó que faltan firmas en base a las fechas y horas de finalización.");
+                                return;
+                            }
+                        }
+                    }
+                }
+
+                // Validación: Devoluciones pendientes de recibir
+                if (this.data.materials) {
+                    for (let mat of this.data.materials) {
+                        const returnQty = parseFloat(mat.return || 0);
+                        if (returnQty > 0 && !this.isReturnReceived(mat.material_id)) {
+                            StatusHandler.ValidationMsg(`Falta recibir la devolución del material: ${mat.description}. Debe chequear la firma de recibido.`);
+                            return;
+                        }
+                    }
+                }
+
                 this.edit_end = true;
 
                 // Calcular cajas/unidades
@@ -1116,6 +1621,12 @@ import moment from 'moment';
                         return;
                     }
 
+                    // 🚫 Validación global eliminada. La validación real se hace dentro de preFinish al evaluar `hasUnsignedReturns`
+                    if (this.hasUnsignedReturns) {
+                        StatusHandler.ValidationMsg("No se puede finalizar: hay devoluciones que aún no han sido firmadas como recibidas.");
+                        return;
+                    }
+
                     const confirm = await StatusHandler.Confirm("¡Confirmar finalización!");
                     if (!confirm) return;
 
@@ -1135,7 +1646,7 @@ import moment from 'moment';
                     const result = await finishPacking(this.data.order_id, data_send);
                     const response = result.data;
 
-                    if (response.code === 0) {
+                    if (response.code !== 1) {
                         StatusHandler.LClose();
                         StatusHandler.ShowStatus(
                             response.msg,
@@ -1148,15 +1659,60 @@ import moment from 'moment';
                     this.data = formatPackingDB(response.data);
                     this.edit_mode = false;
 
-                    // StatusHandler.LClose();
                     StatusHandler.ShowStatus(
                         "¡Finalizado con éxito!",
                         StatusHandler.OPERATION.CREATE,
                         StatusHandler.STATUS.SUCCESS
                     );
                 } catch (ex) {
-                    // StatusHandler.LClose();
+                    StatusHandler.LClose();
                     StatusHandler.Exception("Guardar orden", ex);
+                }
+            },
+
+            entregarDevolucion: async function() {
+                const confirm = await StatusHandler.Confirm('¿Confirmar entrega de devoluciones? Esta acción quedará registrada.');
+                if (!confirm) return;
+
+                try {
+                    StatusHandler.LShow();
+                    const result = await entregarDevolucionPacking(this.data.order_id);
+                    const response = result.data;
+                    StatusHandler.LClose();
+
+                    if (response.code !== 1) {
+                        StatusHandler.ShowStatus(response.msg, StatusHandler.OPERATION.DEFAULT, StatusHandler.STATUS.FAIL);
+                        return;
+                    }
+
+                    this.data = formatPackingDB(response.data);
+                    StatusHandler.ShowStatus('Entrega de devoluciones registrada.', StatusHandler.OPERATION.CREATE, StatusHandler.STATUS.SUCCESS);
+                } catch (ex) {
+                    StatusHandler.LClose();
+                    StatusHandler.Exception('Entregar devolución', ex);
+                }
+            },
+
+            recibirDevolucion: async function() {
+                const confirm = await StatusHandler.Confirm('¿Confirmar recepción de devoluciones? Esta acción quedará registrada.');
+                if (!confirm) return;
+
+                try {
+                    StatusHandler.LShow();
+                    const result = await recibirDevolucionPacking(this.data.order_id);
+                    const response = result.data;
+                    StatusHandler.LClose();
+
+                    if (response.code !== 1) {
+                        StatusHandler.ShowStatus(response.msg, StatusHandler.OPERATION.DEFAULT, StatusHandler.STATUS.FAIL);
+                        return;
+                    }
+
+                    this.data = formatPackingDB(response.data);
+                    StatusHandler.ShowStatus('Recepción de devoluciones registrada.', StatusHandler.OPERATION.CREATE, StatusHandler.STATUS.SUCCESS);
+                } catch (ex) {
+                    StatusHandler.LClose();
+                    StatusHandler.Exception('Recibir devolución', ex);
                 }
             },
 
@@ -1199,6 +1755,96 @@ import moment from 'moment';
             },
             reloadOriginalEntregas(){
                 this.originalEntregas = this.data.entregas.map(entrega => ({ ...entrega }));
+            },
+            // 🔒 Inicializar locks en memoria basados en valores existentes
+            initializeLockedEntregas() {
+                this.lockedEntregas = this.data.entregas.map(entrega => {
+                    const locks = {
+                        cantidad: false,
+                        entrega: false,
+                        recibe: false
+                    };
+                    
+                    // Bloquear 'cantidad' si ya tiene valor
+                    if (entrega.cantidad) {
+                        const strVal = String(entrega.cantidad).trim();
+                        if (strVal !== '' && strVal !== '/') {
+                            const parts = strVal.split('/');
+                            const part0 = parts[0] ? parts[0].trim() : '';
+                            const part1 = parts[1] ? parts[1].trim() : '';
+                            if (part0 !== '' || part1 !== '') {
+                                locks.cantidad = true;
+                            }
+                        }
+                    }
+                    
+                    // Bloquear 'entrega' si ya tiene valor
+                    if (entrega.entrega && String(entrega.entrega).trim() !== '') {
+                        locks.entrega = true;
+                    }
+                    
+                    // Bloquear 'recibe' si ya tiene valor
+                    if (entrega.recibe) {
+                        const strVal = String(entrega.recibe).trim();
+                        if (strVal !== '' && strVal !== '/') {
+                            // Puede ser texto o formato numérico
+                            if (strVal.includes('/')) {
+                                const parts = strVal.split('/');
+                                const part0 = parts[0] ? parts[0].trim() : '';
+                                const part1 = parts[1] ? parts[1].trim() : '';
+                                if (part0 !== '' || part1 !== '') {
+                                    locks.recibe = true;
+                                }
+                            } else if (strVal !== '') {
+                                locks.recibe = true;
+                            }
+                        }
+                    }
+                    
+                    return locks;
+                });
+            },
+            // 🔒 Bloquear campo si tiene valor (llamar después de cada input)
+            lockFieldIfFilled(index, fieldName) {
+                // Asegurar que existe el objeto de locks para este índice
+                if (!this.lockedEntregas[index]) {
+                    this.$set(this.lockedEntregas, index, {
+                        cantidad: false,
+                        entrega: false,
+                        recibe: false
+                    });
+                }
+                
+                const currentValue = this.data.entregas[index][fieldName];
+                
+                if (!currentValue) {
+                    return; // No bloquear si está vacío
+                }
+                
+                const strVal = String(currentValue).trim();
+                
+                // Para campos compuestos (cantidad, recibe)
+                if (fieldName === 'cantidad' || fieldName === 'recibe') {
+                    if (strVal !== '' && strVal !== '/') {
+                        if (strVal.includes('/')) {
+                            const parts = strVal.split('/');
+                            const part0 = parts[0] ? parts[0].trim() : '';
+                            const part1 = parts[1] ? parts[1].trim() : '';
+                            // Bloquear si cualquiera de las partes tiene valor
+                            if (part0 !== '' || part1 !== '') {
+                                this.$set(this.lockedEntregas[index], fieldName, true);
+                            }
+                        } else if (strVal !== '') {
+                            // Texto sin "/" (para compatibilidad con datos antiguos)
+                            this.$set(this.lockedEntregas[index], fieldName, true);
+                        }
+                    }
+                } else {
+                    // Para campos simples (entrega)
+                    if (strVal !== '') {
+                        this.$set(this.lockedEntregas[index], fieldName, true);
+                    }
+                }
             },
             // 3. MODIFICAR checkIfEndDateFilled para manejar correctamente los datos
            checkIfEndDateFilled() {
@@ -1262,6 +1908,84 @@ import moment from 'moment';
                 
                 // Focalizar el input para asegurarse de que el cursor esté en el lugar correcto
                 inputElement.focus();
+            },
+
+            toggleBodegaptFirma(index, isChecked) {
+                if (isChecked) {
+                    this.$set(this.data.entregas[index], 'firma_bodegapt', this.app_vars.current_user.user_fullname);
+                } else {
+                    this.$set(this.data.entregas[index], 'firma_bodegapt', null);
+                }
+            },
+
+            isReturnReceived(materialId) {
+                return !!(this.data.recepcion_retorno_json && this.data.recepcion_retorno_json['m_' + materialId]);
+            },
+
+            getReturnSign(materialId) {
+                if (this.isReturnReceived(materialId)) {
+                    return this.data.recepcion_retorno_json['m_' + materialId].user;
+                }
+                return null;
+            },
+
+            async toggleReturnReceive(material, materialId, isChecked) {
+                // Asegurar que recepcion_retorno_json sea un objeto reactivo puro {} y no un Array []
+                if (!this.data.recepcion_retorno_json || typeof this.data.recepcion_retorno_json !== 'object' || Array.isArray(this.data.recepcion_retorno_json)) {
+                    this.$set(this.data, 'recepcion_retorno_json', {});
+                }
+
+                if (isChecked) {
+                    const confirm = await StatusHandler.Confirm("¿Desea marcar este material como recibido para devolución?", "Si lo marca como recibido, no habrá modificación posterior.");
+                    if (!confirm) {
+                        // Revertir el estado del checkbox si cancela
+                        // Forzamos un refresco visual si es necesario, 
+                        // aunque al ser reactivo y si no guardamos, el getter isReturnReceived debería mantenerlo en false.
+                        // Pero el evento nativo ya lo marcó, así que forzamos re-render de este material
+                        this.$nextTick(() => {
+                           // Forzar re-render mediante refresco de la propiedad si fuera necesario
+                           // En Vue 2, a veces el checkbox nativo se desfasa del estado reactivo tras un cancel
+                           material.checked = false; // dummy update if needed
+                        });
+                        return;
+                    }
+                    this.$set(this.data.recepcion_retorno_json, 'm_' + materialId, {
+                        checked: true,
+                        user: this.app_vars.current_user.user_fullname,
+                        date: moment().format('DD/MM/YYYY HH:mm:ss')
+                    });
+                } else {
+                    // Si se permitiera desmarcar (aunque el mensaje dice que no habrá modificación posterior)
+                    this.$delete(this.data.recepcion_retorno_json, 'm_' + materialId);
+                }
+
+                try {
+                    StatusHandler.LShow();
+                    const jsonStr = JSON.stringify(this.data.recepcion_retorno_json);
+                    console.log("Sending return receipt data as string:", jsonStr);
+                    let response = await saveReturnReceiptPacking(this.data.order_id, {
+                        recepcion_retorno_json: jsonStr
+                    });
+                    
+                    if (response.data.code === 1) {
+                        StatusHandler.LClose();
+                        console.log("Return receipt saved successfully, new data:", JSON.stringify(response.data.data.recepcion_retorno_json));
+                        this.data = formatPackingDB(response.data.data);
+                        StatusHandler.ShowStatus("Recepción guardada", StatusHandler.OPERATION.DEFAULT, StatusHandler.STATUS.SUCCESS);
+                        // Si todos los materiales con devolución ya están firmados, cerrar modo recepción
+                        if (this.allReturnsReceived) {
+                            this.edit_mode_recepcion = false;
+                        }
+                    } else {
+                        StatusHandler.LClose();
+                        StatusHandler.ValidationMsg("No se pudo guardar la recepción: " + response.data.msg);
+                        // Si falló el guardado, deberíamos revertir el estado local
+                        this.data = formatPackingDB(this.data); // Recargar desde el estado previo si es posible
+                    }
+                } catch (e) {
+                    StatusHandler.LClose();
+                    StatusHandler.Exception('Guardando devolución', e);
+                }
             }
 
         }

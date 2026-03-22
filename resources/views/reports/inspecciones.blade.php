@@ -100,41 +100,45 @@
   <tr>
     <th style="border: 1px solid #000;">Fecha</th>
     <td style="border: 1px solid #000;">
-      {{ \Carbon\Carbon::parse($data->inspecciones->fechahoraconxtanque1)->format('d/m/Y') }}
+      {{ $tanque && $tanque->fecha_hora ? \Carbon\Carbon::parse($tanque->fecha_hora)->format('d/m/Y') : (!empty($data->inspecciones->fechahoraconxtanque1) ? \Carbon\Carbon::parse($data->inspecciones->fechahoraconxtanque1)->format('d/m/Y') : '') }}
     </td>
     <th style="border: 1px solid #000;">Hora</th>
     <td style="border: 1px solid #000;">
-      {{ \Carbon\Carbon::parse($data->inspecciones->fechahoraconxtanque1)->format('H:i') }}
+      {{ $tanque && $tanque->fecha_hora ? \Carbon\Carbon::parse($tanque->fecha_hora)->format('H:i') : (!empty($data->inspecciones->fechahoraconxtanque1) ? \Carbon\Carbon::parse($data->inspecciones->fechahoraconxtanque1)->format('H:i') : '') }}
     </td>
 
     <th style="border: 1px solid #000;">Fecha</th>
-    <td style="border: 1px solid #000;">&nbsp;</td>
+    <td style="border: 1px solid #000;">
+      {{ $tanque && $tanque->reconexion_fecha_hora ? \Carbon\Carbon::parse($tanque->reconexion_fecha_hora)->format('d/m/Y') : '' }}
+    </td>
     <th style="border: 1px solid #000;">Hora</th>
-    <td style="border: 1px solid #000;">&nbsp;</td>
+    <td style="border: 1px solid #000;">
+      {{ $tanque && $tanque->reconexion_fecha_hora ? \Carbon\Carbon::parse($tanque->reconexion_fecha_hora)->format('H:i') : '' }}
+    </td>
   </tr>
 
   <!-- Supervisor -->
   <tr>
     <th style="border: 1px solid #000;">Supervisor</th>
-    <td colspan="3" style="border: 1px solid #000;">{{ $data->inspecciones->supervisorconxtanque1 }}</td>
+    <td colspan="3" style="border: 1px solid #000;">{{ $tanque && $tanque->supervisor ? $tanque->supervisor : ($data->inspecciones->supervisorconxtanque1 ?? '') }}</td>
     <th style="border: 1px solid #000;">Supervisor</th>
-    <td colspan="3" style="border: 1px solid #000;">&nbsp;</td>
+    <td colspan="3" style="border: 1px solid #000;">{{ $tanque ? $tanque->reconexion_supervisor : '' }}</td>
   </tr>
 
   <!-- Control de calidad -->
   <tr>
     <th style="border: 1px solid #000;">Control de Calidad</th>
-    <td colspan="3" style="border: 1px solid #000;">{{ $data->inspecciones->ctrlcalidadconxtanque1 }}</td>
+    <td colspan="3" style="border: 1px solid #000;">{{ $tanque && $tanque->control_calidad ? $tanque->control_calidad : ($data->inspecciones->ctrlcalidadconxtanque1 ?? '') }}</td>
     <th style="border: 1px solid #000;">Control de Calidad</th>
-    <td colspan="3" style="border: 1px solid #000;">&nbsp;</td>
+    <td colspan="3" style="border: 1px solid #000;">{{ $tanque ? $tanque->reconexion_control_calidad : '' }}</td>
   </tr>
 
   <!-- Operario -->
   <tr>
     <th style="border: 1px solid #000;">Operario de maq.</th>
-    <td colspan="3" style="border: 1px solid #000;">{{ $data->inspecciones->opmaquinaconxtanque1 }}</td>
+    <td colspan="3" style="border: 1px solid #000;">{{ $tanque && $tanque->operaria ? $tanque->operaria : ($data->inspecciones->opmaquinaconxtanque1 ?? '') }}</td>
     <th style="border: 1px solid #000;">Operario de maq.</th>
-    <td colspan="3" style="border: 1px solid #000;">&nbsp;</td>
+    <td colspan="3" style="border: 1px solid #000;">{{ $tanque ? $tanque->reconexion_operaria : '' }}</td>
   </tr>
 </table>
 
@@ -162,7 +166,7 @@
         <tbody>
           @for ($i = 1; $i <= 4; $i++)
           <tr>
-            <td>{{ optional(\Carbon\Carbon::parse($data->inspecciones->{'rechazadosfecha'.$i}))->format('d/m/Y') }}</td>
+            <td>{{ !empty($data->inspecciones->{'rechazadosfecha'.$i}) ? \Carbon\Carbon::parse($data->inspecciones->{'rechazadosfecha'.$i})->format('d/m/Y') : '' }}</td>
             <td>{{ $data->inspecciones->{'rechazadoscantidadund'.$i} ?? 0 }}</td>
           </tr>
           @endfor
@@ -187,7 +191,7 @@
         <tbody>
           @for ($i = 1; $i <= 4; $i++)
           <tr>
-            <td>{{ optional(\Carbon\Carbon::parse($data->inspecciones->{'vaciosfecha'.$i}))->format('d/m/Y') }}</td>
+            <td>{{ !empty($data->inspecciones->{'vaciosfecha'.$i}) ? \Carbon\Carbon::parse($data->inspecciones->{'vaciosfecha'.$i})->format('d/m/Y') : '' }}</td>
             <td>{{ number_format($data->inspecciones->{'vacioscantidadkgs'.$i} ?? 0, 2) }} kg</td>
           </tr>
           @endfor
@@ -214,12 +218,24 @@
     <tr><th>=</th><td>{{ $data->inspecciones->ptotal  }}</td></tr>
   </table>
 
-  <div class="lote">
-    <strong>RENDIMIENTO DE MEZCLA:</strong> {{ number_format($data->inspecciones->rendimientomezcla, 2) }}
+  <div class="lote" style="font-size: 14px;">
+    <strong>RENDIMIENTO DE MEZCLA:</strong>&nbsp;&nbsp;&nbsp;
+    <span>{{ $data->inspecciones->ptotal ?? 0 }}</span>
+    &nbsp;&nbsp;X&nbsp;&nbsp;
+    <span>100</span>
+    &nbsp;&nbsp;/&nbsp;&nbsp;
+    <span>{{ $data->inspecciones->capacidad ?? 0 }}</span>
+    &nbsp;&nbsp;=&nbsp;&nbsp;
+    <span>{{ $data->inspecciones->rendimientomezcla ? number_format($data->inspecciones->rendimientomezcla, 2) : '0.00' }}</span> &nbsp;%
   </div>
 
   <div class="lote">
-    <strong>CONSUMO DE BOBINA:</strong> <span>{{ $data->inspecciones->consumobobina }}</span>
+    <strong>CONSUMO DE BOBINA:</strong>
+    @if($bobina)
+      ({{ number_format($bobina['entrega1'], 2) }} + {{ number_format($bobina['entrega2'], 2) }}) - {{ number_format($bobina['devolucion'], 2) }} = <strong>{{ number_format($bobina['consumo'], 2) }}</strong>
+    @else
+      <span>{{ $data->inspecciones->consumobobina }}</span>
+    @endif
   </div>
 
 </body>

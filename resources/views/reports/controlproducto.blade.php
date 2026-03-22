@@ -1,5 +1,5 @@
 @php
-    function mapRole($role) {
+    $mapRole = function($role) {
          if (!$role) return "N/A";
         $map = [
             "Mezcla" => "Mezcla",
@@ -12,7 +12,7 @@
             "AuxControlCalidad" => "Auxiliar Control De Calidad",
         ];
         return $map[$role] ?? $role;
-    }
+    };
 @endphp
 <!DOCTYPE html>
 <html lang="es">
@@ -271,9 +271,9 @@
         <td>NOMBRE</td>
       </tr>
       <tr class="cargo">
-        <td>{{ mapRole($data->analisis->rol_crea) }}</td>
-        <td>{{ mapRole($data->analisis->rol_verifica) }}</td>
-        <td>{{ mapRole($data->analisis->rol_autoriza) }}</td>
+        <td>{{ $mapRole($data->analisis->rol_crea) }}</td>
+        <td>{{ $mapRole($data->analisis->rol_verifica) }}</td>
+        <td>{{ $mapRole($data->analisis->rol_autoriza) }}</td>
       </tr>
       <tr class="section-title">
         <td>CARGO</td>

@@ -78,63 +78,72 @@
             goActiveOrder(id){
                 this.$emit('load-order',id);
             },
-            getStatusDescription(status) {
-                console.log("TIPO DE ORDEN",this.typeorder)
-                switch (status) {
-                    case 2:
-                        {
-                            let message = "";
-                            if(this.typeorder == "mix"){
-                                message = "Falta registrar pesaje o pendiente de aprobar de pesaje";
-                            }
-                            if(this.typeorder == "packing"){
-                                message = "Empaque cargado (Pendiente de autorizar)";
-                            }
-                            return message;
-                        }
-                    case 3:
-                        {
-                            let message = "";
-                            if(this.typeorder == "mix"){
-                                message = "Pesaje aprobado (Pendiente de recibir materia prima o revisar orden)";
-                            }
-                            if(this.typeorder == "packing"){
-                                message = "Empaque autorizado (Pendiente de finalizar)";
-                            }
-                            return message;
-                        }
-                    case 4:
-                        if(this.typeorder == "packing"){
-                            return "Orden de empaque finalizada";
-                        }
-                        return "Orden de mezcla autorizada (Pendiente de iniciar proceso)";
-                    case -1:
-                        if(this.typeorder == "packing"){
-                            return "Orden de empaque finalizada";
-                        }
-                        return "Mezcla revisada de materia prima";
-                    case 5:
-                        if(this.typeorder == "packing"){
-                            return "Orden de empaque finalizada";
-                        }
-                        return "Mezcla en proceso...";
-                    case 6:
-                        if(this.typeorder == "packing"){
-                            return "Orden de empaque finalizada";
-                        }
-                        return "Mezcla finalizada (Pendiente de autorización de finalizado)";
-                    case 7:
-                        if(this.typeorder == "packing"){
-                            return "Orden de empaque finalizada";
-                        }
-                        return "Mezcla autorizada de finalización";
-                    default:
-                        return "Estado desconocido";
+    getStatusDescription(status) {
+        console.log("TIPO DE ORDEN",this.typeorder)
+        switch (status) {
+            case 0:
+                if(this.typeorder == "packing") {
+                    return "Validación de Tanque Completada (Lista para cargar empaque)";
                 }
-            }
-            
+                return "Estado desconocido";
+            case 1:
+                if(this.typeorder == "packing"){
+                    return "Empaque Cargado (Pendiente)";
+                }
+                return "Estado desconocido";
+            case 2:
+                {
+                    let message = "";
+                    if(this.typeorder == "mix"){
+                        message = "Falta registrar pesaje o pendiente de aprobar de pesaje";
+                    }
+                    if(this.typeorder == "packing"){
+                        message = "Empaque cargado (Pendiente de autorizar)";
+                    }
+                    return message;
+                }
+            case 3:
+                {
+                    let message = "";
+                    if(this.typeorder == "mix"){
+                        message = "Pesaje aprobado (Pendiente de recibir materia prima o revisar orden)";
+                    }
+                    if(this.typeorder == "packing"){
+                        message = "Empaque autorizado (Pendiente de finalizar)";
+                    }
+                    return message;
+                }
+            case 4:
+                if(this.typeorder == "packing"){
+                    return "Orden de empaque finalizada";
+                }
+                return "Orden de mezcla autorizada (Pendiente de iniciar proceso)";
+            case -1:
+                if(this.typeorder == "packing"){
+                    return "Orden de empaque finalizada";
+                }
+                return "Mezcla revisada de materia prima";
+            case 5:
+                if(this.typeorder == "packing"){
+                    return "Orden de empaque finalizada";
+                }
+                return "Mezcla en proceso...";
+            case 6:
+                if(this.typeorder == "packing"){
+                    return "Orden de empaque finalizada";
+                }
+                return "Mezcla finalizada (Pendiente de autorización de finalizado)";
+            case 7:
+                if(this.typeorder == "packing"){
+                    return "Orden de empaque finalizada";
+                }
+                return "Mezcla autorizada de finalización";
+            default:
+                return "Estado desconocido";
         }
     }
+}
+}
 </script>
 <style>
 .info-box {

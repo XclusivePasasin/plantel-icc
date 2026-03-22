@@ -27,7 +27,8 @@ class MixController extends Controller
             "data" => null
         ];
 
-        $order = MixOrder::where('num_id', $order_code)->first();
+        // Búsqueda flexible ignorando espacios para evitar errores:
+        $order = MixOrder::whereRaw("REPLACE(num_id, ' ', '') = ?", [preg_replace('/\s+/', '', $order_code)])->first();
         if (!$order) {
             $salida["msg"] = "La orden no fue encontrada";
             return $salida;
@@ -72,7 +73,7 @@ class MixController extends Controller
         }
 
         // 🆕 Estado de control de producto
-        $control = ControlProducto::where('numero_orden', $order->num_id)->first();
+        $control = ControlProducto::whereRaw("REPLACE(numero_orden, ' ', '') = ?", [preg_replace('/\s+/', '', $order->num_id)])->first();
 
         if ($control) {
             switch ($control->estado) {
@@ -124,7 +125,7 @@ class MixController extends Controller
             $order->save();
 
             $order->refresh();
-            $order->load('materials');
+            $order->load('mixMaterials');
 
             $salida["code"] = 1;
             $salida["msg"]  = "Usuario de entrega MP actualizado correctamente";
@@ -175,9 +176,16 @@ class MixController extends Controller
 
         // 🔎 Normalizar código para BD
         $normalizedDBCode = $this->normalizeOrderCode($order_code);
+        \Log::info("searchDB: Buscando orden en BD con código normalizado: " . $normalizedDBCode);
 
         // Buscar en BD
         $order = MixOrder::whereRaw("REPLACE(num_id, ' ', '') = ?", [$normalizedDBCode])->first();
+
+        if ($order) {
+            \Log::info("searchDB: Orden encontrada en BD local. ID: " . $order->id);
+        } else {
+            \Log::info("searchDB: Orden NO encontrada en BD local.");
+        }
 
         // 🚀 Si no está en BD y es JefeProducción, ir a API
         if(!$order && Auth::user()->hasRole("JefeProduccion")){
@@ -240,7 +248,7 @@ class MixController extends Controller
             }
         }
 
-        $order->load('materials');
+        $order->load('mixMaterials');
 
         $salida["code"] = 1;
         $salida["msg"]  = "Processed Successfully";
@@ -282,7 +290,7 @@ class MixController extends Controller
         }
 
         $order->refresh();
-        $order->load('materials');
+        $order->load('mixMaterials');
 
         $salida["code"] = 1;
         $salida["msg"] = "Processed Successfully";
@@ -339,7 +347,7 @@ class MixController extends Controller
 
         // Refrescar la orden y cargar los materiales
         $order->refresh();
-        $order->load('materials');
+        $order->load('mixMaterials');
 
         // Retornar la respuesta exitosa
         $salida["code"] = 1;
@@ -432,7 +440,7 @@ class MixController extends Controller
 
 
         $order->refresh();
-        $order->load('materials');
+        $order->load('mixMaterials');
 
         $salida["code"] = 1;
         $salida["msg"] = "Processed Successfully";
@@ -585,7 +593,7 @@ class MixController extends Controller
         }
 
         $order->refresh();
-        $order->load('materials');
+        $order->load('mixMaterials');
 
         $salida["code"] = 1;
         $salida["msg"] = "Processed Successfully";
@@ -617,7 +625,7 @@ class MixController extends Controller
         }
 
         $order->refresh();
-        $order->load('materials');
+        $order->load('mixMaterials');
 
         $salida["code"] = 1;
         $salida["msg"] = "Processed Successfully";
@@ -643,14 +651,21 @@ class MixController extends Controller
             return $salida;
         }
 
-        \Log::info("Iniciando búsqueda de orden: " . $order_code);
+        \Log::info("Iniciando búsqueda de orden (search): " . $order_code);
 
         // Normalizar el código ingresado
         $normalizedOrderCode = preg_replace('/\s+/', '', $order_code);
+        \Log::info("Código normalizado: " . $normalizedOrderCode);
 
         // Inicializar búsqueda en la base de datos local
         $salida["data"] = ["origin" => "DB", "order" => null];
         $order = MixOrder::whereRaw("REPLACE(num_id, ' ', '') = ?", [$normalizedOrderCode])->first();
+
+        if ($order) {
+             \Log::info("Orden encontrada en BD local ID: " . $order->id);
+        } else {
+             \Log::info("Orden NO encontrada en BD local.");
+        }
 
         // Si no se encuentra en la BD, consultar la API
         if (!$order) {
@@ -790,7 +805,7 @@ class MixController extends Controller
 
         } else {
             // Si se encuentra en la base de datos, cargar materiales relacionados
-            $order->load('materials');
+            $order->load('mixMaterials');
             \Log::info("Orden encontrada en la base de datos: " . json_encode($order, JSON_UNESCAPED_UNICODE));
         }
 
@@ -822,62 +837,62 @@ class MixController extends Controller
 
             try {
                 $sql = <<<SQL
-    WITH RECURSIVE cte AS (
-    -- 1. Primera línea
-    SELECT 
+WITH RECURSIVE cte AS (
+-- 1. Primera línea
+SELECT 
+    id,
+    observaciones AS full_text,
+    TRIM(SUBSTRING_INDEX(observaciones, '\n', 1)) AS linea,
+    SUBSTRING(
+        observaciones,
+        CHAR_LENGTH(SUBSTRING_INDEX(observaciones, '\n', 1)) 
+        + CASE 
+            WHEN INSTR(observaciones, '\r\n') > 0 THEN 3 
+            ELSE 2 
+          END
+    ) AS resto
+FROM mix_orders
+WHERE id = :order_id
+
+UNION ALL
+
+-- 2. Líneas siguientes
+SELECT
         id,
-        observaciones AS full_text,
-        TRIM(SUBSTRING_INDEX(observaciones, '\n', 1)) AS linea,
+        full_text,
+        TRIM(SUBSTRING_INDEX(resto, '\n', 1)) AS linea,
         SUBSTRING(
-            observaciones,
-            CHAR_LENGTH(SUBSTRING_INDEX(observaciones, '\n', 1)) 
+            resto,
+            CHAR_LENGTH(SUBSTRING_INDEX(resto, '\n', 1)) 
             + CASE 
-                WHEN INSTR(observaciones, '\r\n') > 0 THEN 3 
+                WHEN INSTR(resto, '\r\n') > 0 THEN 3 
                 ELSE 2 
-              END
+            END
         ) AS resto
-    FROM mix_orders
-    WHERE id = :order_id
-
-    UNION ALL
-
-    -- 2. Líneas siguientes
-    SELECT
-            id,
-            full_text,
-            TRIM(SUBSTRING_INDEX(resto, '\n', 1)) AS linea,
-            SUBSTRING(
-                resto,
-                CHAR_LENGTH(SUBSTRING_INDEX(resto, '\n', 1)) 
-                + CASE 
-                    WHEN INSTR(resto, '\r\n') > 0 THEN 3 
-                    ELSE 2 
-                END
-            ) AS resto
-        FROM cte
-        WHERE resto <> ''
-    )
-
-    SELECT
-        id,
-        linea,
-        DATE_FORMAT(
-            STR_TO_DATE(
-                SUBSTRING(
-                    linea,
-                    INSTR(linea, '(') + 1,
-                    INSTR(linea, ')') - INSTR(linea, '(') - 1
-                ),
-                '%Y-%m-%d %H:%i:%s'
-            ),
-            '%d%m%Y%H%i%s'
-        ) AS id_linea
     FROM cte
-    WHERE 
-        linea <> ''
-        AND INSTR(linea, '(') > 0
-        AND INSTR(linea, ')') > INSTR(linea, '(');
-    SQL;
+    WHERE resto <> ''
+)
+
+SELECT
+    id,
+    linea,
+    DATE_FORMAT(
+        STR_TO_DATE(
+            SUBSTRING(
+                linea,
+                INSTR(linea, '(') + 1,
+                INSTR(linea, ')') - INSTR(linea, '(') - 1
+            ),
+            '%Y-%m-%d %H:%i:%s'
+        ),
+        '%d%m%Y%H%i%s'
+    ) AS id_linea
+FROM cte
+WHERE 
+    linea <> ''
+    AND INSTR(linea, '(') > 0
+    AND INSTR(linea, ')') > INSTR(linea, '(');
+SQL;
 
                 $rows = DB::select($sql, [
                     'order_id' => $orderId
@@ -888,7 +903,7 @@ class MixController extends Controller
                 $salida["data"] = $rows;
 
             } catch (\Exception $e) {
-                \Log::error("Error en getObservacionesPorLineas: ".$e->getMessage());
+                \Log::error("Error en getObservacionesPo    rLineas: ".$e->getMessage());
                 $salida["msg"] = "Error: " . $e->getMessage();
             }
 
@@ -1135,7 +1150,7 @@ class MixController extends Controller
 
             $salida["code"] = 1;
             $salida["msg"]  = "Processed Successfully";
-            $salida["data"] = $order->load('materials');
+            $salida["data"] = $order->load('mixMaterials');
         } catch(\Exception $ex) {
             DB::rollback();
             $salida['msg'] = "Error: " . $ex->getMessage()." en linea ".$ex->getLine();
@@ -1156,7 +1171,7 @@ class MixController extends Controller
 
         DB::beginTransaction();
         try {
-            $order = MixOrder::with('materials')->findOrFail($id);
+            $order = MixOrder::with('mixMaterials')->findOrFail($id);
             
             // ✅ Actualizar estado de la orden
             $order->status_receive_materials = 1;
@@ -1171,7 +1186,7 @@ class MixController extends Controller
             $salida["msg"]  = "Orden actualizada correctamente";
             $salida["data"] = [
                 'order'     => $order,
-                'materials' => $order->materials()->get()
+                'materials' => $order->mixMaterials()->get()
             ];
 
         } catch (\Exception $ex) {
@@ -1304,7 +1319,7 @@ class MixController extends Controller
         }
 
         $order->refresh();
-        $order->load('materials');
+        $order->load('mixMaterials');
 
         $salida["code"] = 1;
         $salida["msg"]  = "Processed Successfully";
@@ -1404,7 +1419,7 @@ class MixController extends Controller
             \Log::info("📦 Materiales procesados: " . count($materials));
 
             $order->refresh();
-            $order->load('materials');
+            $order->load('mixMaterials');
 
             DB::commit();
 
@@ -1601,7 +1616,7 @@ class MixController extends Controller
 
                 // 🧾 Construir bitácora unificada
                 $nuevaBitacora = collect($bitacoraExistente)
-                    ->map(fn($v, $k) => "$k: $v")
+                    ->map(function($v, $k) { return "$k: $v"; })
                     ->implode("\n");
 
                 // 🟢 Construir observaciones finales: texto manual | bitácora

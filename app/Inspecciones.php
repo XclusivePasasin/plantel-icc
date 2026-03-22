@@ -221,16 +221,18 @@ class Inspecciones extends Model
 
     public function formatDate($inspecciones)
     {
-        $inspecciones->fechahoraconxtanque1 = $inspecciones->fechahoraconxtanque1 ? date("d-m-Y H:i", strtotime($inspecciones->fechahoraconxtanque1)) : NULL;
-        $inspecciones->fechahoraconxtanque2 = $inspecciones->fechahoraconxtanque2 ? date("d-m-Y H:i", strtotime($inspecciones->fechahoraconxtanque2)) : NULL;
-        $inspecciones->rechazadosfecha1 = $inspecciones->rechazadosfecha1 ? date("d-m-Y", strtotime($inspecciones->rechazadosfecha1)) : NULL;
-        $inspecciones->rechazadosfecha2 = $inspecciones->rechazadosfecha2 ? date("d-m-Y", strtotime($inspecciones->rechazadosfecha2)) : NULL;
-        $inspecciones->rechazadosfecha3 = $inspecciones->rechazadosfecha3 ? date("d-m-Y", strtotime($inspecciones->rechazadosfecha3)) : NULL;
-        $inspecciones->rechazadosfecha4 = $inspecciones->rechazadosfecha4 ? date("d-m-Y", strtotime($inspecciones->rechazadosfecha4)) : NULL;
-        $inspecciones->vaciosfecha1 = $inspecciones->vaciosfecha1 ? date("d-m-Y", strtotime($inspecciones->rechazadosfecha1)) : NULL;
-        $inspecciones->vaciosfecha2 = $inspecciones->vaciosfecha2 ? date("d-m-Y", strtotime($inspecciones->rechazadosfecha2)) : NULL;
-        $inspecciones->vaciosfecha3 = $inspecciones->vaciosfecha3 ? date("d-m-Y", strtotime($inspecciones->rechazadosfecha3)) : NULL;
-        $inspecciones->vaciosfecha4 = $inspecciones->vaciosfecha4 ? date("d-m-Y", strtotime($inspecciones->rechazadosfecha4)) : NULL;
+        $inspecciones->fechahoraconxtanque1 = (!empty($inspecciones->fechahoraconxtanque1)) ? date("d-m-Y H:i", strtotime($inspecciones->fechahoraconxtanque1)) : NULL;
+        $inspecciones->fechahoraconxtanque2 = (!empty($inspecciones->fechahoraconxtanque2)) ? date("d-m-Y H:i", strtotime($inspecciones->fechahoraconxtanque2)) : NULL;
+        
+        $inspecciones->rechazadosfecha1 = (!empty($inspecciones->rechazadosfecha1)) ? date("d-m-Y", strtotime($inspecciones->rechazadosfecha1)) : NULL;
+        $inspecciones->rechazadosfecha2 = (!empty($inspecciones->rechazadosfecha2)) ? date("d-m-Y", strtotime($inspecciones->rechazadosfecha2)) : NULL;
+        $inspecciones->rechazadosfecha3 = (!empty($inspecciones->rechazadosfecha3)) ? date("d-m-Y", strtotime($inspecciones->rechazadosfecha3)) : NULL;
+        $inspecciones->rechazadosfecha4 = (!empty($inspecciones->rechazadosfecha4)) ? date("d-m-Y", strtotime($inspecciones->rechazadosfecha4)) : NULL;
+        
+        $inspecciones->vaciosfecha1 = (!empty($inspecciones->vaciosfecha1)) ? date("d-m-Y", strtotime($inspecciones->vaciosfecha1)) : NULL;
+        $inspecciones->vaciosfecha2 = (!empty($inspecciones->vaciosfecha2)) ? date("d-m-Y", strtotime($inspecciones->vaciosfecha2)) : NULL;
+        $inspecciones->vaciosfecha3 = (!empty($inspecciones->vaciosfecha3)) ? date("d-m-Y", strtotime($inspecciones->vaciosfecha3)) : NULL;
+        $inspecciones->vaciosfecha4 = (!empty($inspecciones->vaciosfecha4)) ? date("d-m-Y", strtotime($inspecciones->vaciosfecha4)) : NULL;
 
         return $inspecciones;
     }
