@@ -29,11 +29,14 @@ class ReportController extends Controller
         }
 
         $order->load('mixMaterials');
+        $order->load('extraMaterials');
 
         // Aplica formato a observaciones
         $order->observaciones = $this->formatObservations($order->observaciones);
 
-        $data = ['data' => $order];
+        $extraMaterials = $order->extraMaterials;
+
+        $data = ['data' => $order, 'extraMaterials' => $extraMaterials];
 
         $fechaActual = date('Y-m-d');
         $pdf = PDF::loadView('reports.mixorder', $data);

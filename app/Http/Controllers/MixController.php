@@ -237,7 +237,7 @@ class MixController extends Controller
 
         // 🚫 Si no está en BD y no es JefeProducción
         if(!$order){
-            $salida["msg"] = "La orden no fue encontrada";
+            $salida["msg"] = "Esta orden no ha sido aprobada por un Jefe de Producción";
             return $salida;
         }
 
@@ -667,147 +667,16 @@ class MixController extends Controller
              \Log::info("Orden NO encontrada en BD local.");
         }
 
-        // Si no se encuentra en la BD, consultar la API
+        // Si no se encuentra en la BD, se exige autorización previa
         if (!$order) {
-            $salida["data"]["origin"] = "API";
-
-            $url = "https://data.industriascuscatlan.com:7322/wsPlantel/mezcla.php";
-            $response = Http::withoutVerifying()->get($url);
-
-            // Validación de respuesta HTTP
-            if ($response->failed()) {
-                \Log::error("Error en la petición a la API. Código de estado: " . $response->status());
-                $salida["msg"] = "Error al conectar con la API.";
-                return $salida;
-            }
-
-            $body = $response->body();
-
-            // Logs útiles (evita loguear TODO si es enorme, pero aquí lo mantengo como lo tenías)
-            \Log::info('API Response length: ' . strlen($body));
-            \Log::info('API Response (raw): ' . $body);
-            file_put_contents(storage_path('logs/debug.log'), 'API Response length: ' . strlen($body) . "\n", FILE_APPEND);
-            file_put_contents(storage_path('logs/debug.log'), 'API Response (raw): ' . $body . "\n", FILE_APPEND);
-
-            /**
-             * ✅ PARSEO ROBUSTO SIN PERDER TILDES
-             * - Quita BOM
-             * - Recorta basura antes/después del JSON (HTML/warnings/texto extra)
-             * - Quita SOLO caracteres de control
-             * - Asegura UTF-8
-             * - json_decode tolerante a bytes inválidos
-             */
-
-            // 1) Quitar BOM
-            $body = preg_replace('/^\xEF\xBB\xBF/', '', $body);
-
-            // 2) Encontrar inicio del JSON real ({ o [)
-            $firstArr = strpos($body, '[');
-            $firstObj = strpos($body, '{');
-
-            if ($firstArr === false && $firstObj === false) {
-                \Log::error("La respuesta no contiene '[' ni '{'. Posible HTML/warning.");
-                \Log::error("Snippet inicio: " . substr($body, 0, 250));
-                file_put_contents(storage_path('logs/debug.log'), "No contiene JSON. Snippet: " . substr($body, 0, 500) . "\n", FILE_APPEND);
-                $salida["msg"] = "Error crítico: La API no devolvió JSON.";
-                return $salida;
-            }
-
-            $start = ($firstArr === false) ? $firstObj : (($firstObj === false) ? $firstArr : min($firstArr, $firstObj));
-
-            // 3) Encontrar fin del JSON real (} o ])
-            $lastArr = strrpos($body, ']');
-            $lastObj = strrpos($body, '}');
-            $end = max($lastArr !== false ? $lastArr : -1, $lastObj !== false ? $lastObj : -1);
-
-            if ($end < $start) {
-                \Log::error("No se pudo determinar el fin del JSON (JSON incompleto).");
-                \Log::error("Snippet inicio: " . substr($body, 0, 250));
-                file_put_contents(storage_path('logs/debug.log'), "JSON incompleto. Snippet: " . substr($body, 0, 500) . "\n", FILE_APPEND);
-                $salida["msg"] = "Error crítico: JSON incompleto desde la API.";
-                return $salida;
-            }
-
-            // 4) Extraer solo el JSON “puro”
-            $jsonRaw = substr($body, $start, ($end - $start) + 1);
-
-            // 5) Eliminar SOLO caracteres de control (no afecta tildes)
-            $jsonRaw = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', '', $jsonRaw);
-
-            // 6) Asegurar UTF-8 (json_decode lo necesita)
-            if (!mb_check_encoding($jsonRaw, 'UTF-8')) {
-                $enc = mb_detect_encoding($jsonRaw, ['UTF-8', 'Windows-1252', 'ISO-8859-1'], true) ?: 'Windows-1252';
-                $jsonRaw = mb_convert_encoding($jsonRaw, 'UTF-8', $enc);
-            }
-
-            // 7) Decodificar JSON con tolerancia
-            $flags = 0;
-            if (defined('JSON_INVALID_UTF8_SUBSTITUTE')) $flags |= JSON_INVALID_UTF8_SUBSTITUTE;
-
-            $items = json_decode($jsonRaw, true, 512, $flags);
-
-            // 8) Si aún falla, último intento: iconv ignorando bytes corruptos
-            if (json_last_error() !== JSON_ERROR_NONE) {
-                $iconv = @iconv('UTF-8', 'UTF-8//IGNORE', $jsonRaw);
-                if ($iconv !== false) {
-                    $items = json_decode($iconv, true, 512, $flags);
-                }
-            }
-
-            // 9) Si falla definitivamente
-            if (json_last_error() !== JSON_ERROR_NONE || !is_array($items)) {
-                \Log::error('Error JSON API: ' . json_last_error_msg());
-                \Log::error('Snippet JSON: ' . substr($jsonRaw, 0, 250));
-                file_put_contents(storage_path('logs/debug.log'), "JSON Error: " . json_last_error_msg() . "\n", FILE_APPEND);
-                file_put_contents(storage_path('logs/debug.log'), "Snippet JSON: " . substr($jsonRaw, 0, 500) . "\n", FILE_APPEND);
-
-                $salida["msg"] = "Error crítico: La API devolvió datos ilegibles.";
-                return $salida;
-            }
-
-            // Log del código de orden que se está buscando
-            \Log::info('Buscando orden con código: ' . $order_code);
-            file_put_contents(storage_path('logs/debug.log'), 'Buscando orden con código: ' . $order_code . "\n", FILE_APPEND);
-
-            // Buscar la orden en los datos obtenidos de la API
-            $found = false;
-            foreach ($items as $el) {
-                $e = (object)$el;
-
-                \Log::info('Orden en API: ' . json_encode($e, JSON_UNESCAPED_UNICODE));
-                file_put_contents(
-                    storage_path('logs/debug.log'),
-                    'Orden en API: ' . json_encode($e, JSON_UNESCAPED_UNICODE) . "\n",
-                    FILE_APPEND
-                );
-
-                if (preg_replace('/\s+/', '', $e->num ?? '') == $normalizedOrderCode) {
-                    $order = $e;
-                    $found = true;
-
-                    \Log::info('Orden encontrada: ' . json_encode($order, JSON_UNESCAPED_UNICODE));
-                    file_put_contents(
-                        storage_path('logs/debug.log'),
-                        'Orden encontrada: ' . json_encode($order, JSON_UNESCAPED_UNICODE) . "\n",
-                        FILE_APPEND
-                    );
-
-                    break;
-                }
-            }
-
-            if (!$found) {
-                \Log::warning("No se encontró la orden con el código: {$order_code}");
-                file_put_contents(storage_path('logs/debug.log'), "No se encontró la orden con el código: {$order_code}\n", FILE_APPEND);
-                $salida["msg"] = "No se encontró la orden en la API.";
-                return $salida;
-            }
-
-        } else {
-            // Si se encuentra en la base de datos, cargar materiales relacionados
-            $order->load('mixMaterials');
-            \Log::info("Orden encontrada en la base de datos: " . json_encode($order, JSON_UNESCAPED_UNICODE));
+            $salida["code"] = 0;
+            $salida["msg"] = "Esta orden no ha sido aprobada por un Jefe de Producción";
+            return $salida;
         }
+
+        // Si se encuentra en la base de datos, cargar materiales relacionados
+        $order->load('mixMaterials');
+        \Log::info("Orden encontrada en la base de datos: " . json_encode($order, JSON_UNESCAPED_UNICODE));
 
         // Formatear la fecha
         if (isset($order->date)) {
@@ -999,7 +868,7 @@ SQL;
         $order->save();
 
         return response()->json([
-            'code' => 0,
+            'code' => 1,
             'msg'  => 'Observaciones actualizadas',
             'data' => [
                 'observaciones' => $order->observaciones,
@@ -1094,7 +963,18 @@ SQL;
                          $code = isset($mat['code']) ? preg_replace('/\s+/', '', $mat['code']) : '';
                          
                          // Ignorar Agua (809909900100)
-                         if (isset($mat['entrega1']) && $mat['entrega1'] == 1 && $code !== '809909900100') {
+                         $isFullyVerified = false;
+                         if (isset($mat['entrega1']) && $mat['entrega1'] == 1) {
+                             if (isset($mat['amount2']) && $mat['amount2'] !== null) {
+                                 if (isset($mat['entrega_duplicada1']) && $mat['entrega_duplicada1'] == 1) {
+                                     $isFullyVerified = true;
+                                 }
+                             } else {
+                                 $isFullyVerified = true;
+                             }
+                         }
+
+                         if ($isFullyVerified && $code !== '809909900100') {
                              $hasVerifiedMaterial = true;
                              break;
                          }
@@ -1137,6 +1017,18 @@ SQL;
                 $mats->stock       = $target->stock;
                 $mats->almacen     = $target->almacen;
                 $mats->entrega1    = $target->entrega1;
+
+                if (Auth::user()->hasRole("SupCalidad")) {
+                    if (isset($target->entrega_duplicada1)) {
+                        $mats->entrega_duplicada1 = $target->entrega_duplicada1 ? 1 : 0;
+                        \Log::info("Material ID {$mats->id} (Code {$mats->code}) saved with entrega_duplicada1 = " . $mats->entrega_duplicada1);
+                    } else {
+                        \Log::warning("Material ID {$mats->id} (Code {$mats->code}) sent without entrega_duplicada1 property!");
+                    }
+                } else {
+                    \Log::warning("User does not have SupCalidad role for Material {$mats->id}");
+                }
+
                 $mats->lot1        = $target->lot1;
                 $mats->entrega2    = $target->entrega2;
                 $mats->lot2        = $target->lot2;
@@ -1410,6 +1302,11 @@ SQL;
                 $material->stock           = $mat['stock'];
                 $material->almacen         = $mat['almacen'];
                 $material->entrega1        = $mat['entrega1'] ?? false;
+                
+                if (Auth::user()->hasRole("SupCalidad") && isset($mat['entrega_duplicada1'])) {
+                    $material->entrega_duplicada1 = $mat['entrega_duplicada1'] ? 1 : 0;
+                }
+
                 $material->lot1            = $mat['lot1'] ?? "";
                 $material->entrega2        = $mat['entrega2'] ?? false;
                 $material->lot2            = $mat['lot2'] ?? "";
@@ -1421,24 +1318,98 @@ SQL;
             $order->refresh();
             $order->load('mixMaterials');
 
-            DB::commit();
-
             $salida["code"] = 1;
             $salida["msg"]  = "Processed Successfully";
             $salida["data"] = $order;
 
-            \Log::info("✅ Proceso finalizado con éxito para la orden ID={$order->id}");
-        } catch(\Exception $ex) {
+            DB::commit();
+        } catch (\Exception $e) {
             DB::rollBack();
-            $salida["msg"] = "Error: " . $ex->getMessage()." en línea ".$ex->getLine();
-
-            \Log::error("🔥 Error en autorizefinished: " . $ex->getMessage(), [
-                'linea' => $ex->getLine(),
-                'trace' => $ex->getTraceAsString()
-            ]);
+            \Log::error("❌ Error en autorizefinished: " . $e->getMessage());
+            $salida["msg"] = "Error interno: " . $e->getMessage();
         }
 
         return $salida;
+    }
+
+    public function autorizarInicio(Request $request)
+    {
+        $salida = [
+            "code" => 0,
+            "msg"  => "",
+            "data" => null
+        ];
+
+        if(!Auth::user()->hasRole("JefeProduccion")){
+            $salida["msg"] = "Operación denegada";
+            return response()->json($salida);
+        }
+
+        DB::beginTransaction();
+        try {
+            $order = new MixOrder();
+
+            $date = $request->input('date');
+            if ($date) {
+                try {
+                    $order->order_date = \Carbon\Carbon::createFromFormat('d/m/Y', $date)->format('Y-m-d H:i:s');
+                } catch (\Exception $e) {
+                    try {
+                        $order->order_date = \Carbon\Carbon::parse($date)->format('Y-m-d H:i:s');
+                    } catch (\Exception $x) {
+                        $order->order_date = now('America/El_Salvador');
+                    }
+                }
+            } else {
+                $order->order_date = now('America/El_Salvador');
+            }
+
+            $order->num_id             = preg_replace('/\s+/', '', $request->input('num_id'));
+            $order->product_code       = $request->input('product_code');
+            $order->product_name       = $request->input('product_name');
+            $order->lot_size           = $request->input('lot_size', 0);
+            $order->cod_formula_master = $request->input('cod_formula_master', "");
+            $order->revisiones         = json_encode($request->input('revisiones', []));
+            $order->materials          = count($request->input('materials', []));
+            $order->status             = 1; // Autorizada para inicio
+            
+            // Permitir nulls o empty en pesaje_fin y todo
+            $order->user_autoriza_inicio = session('user_cur_fullname');
+            
+            $order->save();
+
+            $materials = $request->input('materials', []);
+            foreach ($materials as $mat) {
+                $material = new Material();
+                $material->code            = preg_replace('/\s+/', '', $mat['code']);
+                $material->description     = $mat['description'];
+                $material->required_amount = $mat['required_amount'];
+                $material->unit            = $mat['unit'];
+                $material->stock           = $mat['stock'];
+                $material->almacen         = $mat['almacen'];
+                $material->entrega1        = 0;
+                $material->lot1            = "";
+                $material->entrega2        = 0;
+                $material->lot2            = "";
+                $material->mix_order_id    = $order->id;
+                $material->save();
+            }
+
+            $order->refresh();
+            $order->load('mixMaterials');
+
+            $salida["code"] = 1;
+            $salida["msg"]  = "Autorizada Correctamente";
+            $salida["data"] = $order;
+
+            DB::commit();
+        } catch (\Exception $e) {
+            DB::rollBack();
+            \Log::error("❌ Error en autorizarInicio: " . $e->getMessage());
+            $salida["msg"] = "Error interno: " . $e->getMessage();
+        }
+
+        return response()->json($salida);
     }
 
 
@@ -1777,7 +1748,89 @@ SQL;
 
 
 
-
    
     
+
+    /**
+     * Guarda los materiales extra de una orden de mezcla.
+     * Solo permitido en estado 5 (En Proceso) por JefeControlCalidad.
+     */
+    public function storeExtraMaterials(Request $request, $id)
+    {
+        $salida = ['code' => 0, 'msg' => '', 'data' => null];
+
+        if (!Auth::user()->hasRole('JefeControlCalidad') && !Auth::user()->hasRole('JefeProduccion')) {
+            $salida['msg'] = 'Operación denegada';
+            return response()->json($salida, 403);
+        }
+
+        $order = MixOrder::find($id);
+        if (!$order) {
+            $salida['msg'] = 'La orden no fue encontrada';
+            return response()->json($salida, 404);
+        }
+
+        if ((int)$order->status !== 5) {
+            $salida['msg'] = 'Solo se puede agregar materia prima adicional cuando la orden está En Proceso';
+            return response()->json($salida, 422);
+        }
+
+        try { \Illuminate\Support\Facades\DB::statement("ALTER TABLE extra_materials ADD COLUMN description VARCHAR(255) DEFAULT ''"); } catch(\Exception $e) {}
+        try { \Illuminate\Support\Facades\DB::statement("ALTER TABLE extra_materials ADD COLUMN code VARCHAR(100) DEFAULT ''"); } catch(\Exception $e) {}
+
+        $items = $request->input('items', []);
+
+        if (empty($items)) {
+            $salida['msg'] = 'No se recibieron materiales';
+            return response()->json($salida, 422);
+        }
+
+        DB::beginTransaction();
+        try {
+            foreach ($items as $item) {
+                \App\ExtraMaterial::create([
+                    'mix_order_id'  => $order->id,
+                    'material_id'   => $item['material_id'] ?? null,
+                    'description'   => $item['description'] ?? '',
+                    'code'          => $item['code'] ?? '',
+                    'lote'          => $item['lote'] ?? '',
+                    'cantidad'      => $item['cantidad'] ?? 0,
+                    'unidad_medida' => $item['unidad_medida'] ?? '',
+                    'almacen'       => $item['almacen'] ?? '',
+                    'created_by'    => Auth::user()->name,
+                ]);
+            }
+            DB::commit();
+
+            $salida['code'] = 1;
+            $salida['msg']  = 'Materia prima adicional guardada correctamente';
+            $salida['data'] = $order->extraMaterials()->get();
+            return response()->json($salida);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            \Log::error('Error storeExtraMaterials: ' . $e->getMessage());
+            $salida['msg'] = 'Error: ' . $e->getMessage();
+            return response()->json($salida, 500);
+        }
+    }
+
+    /**
+     * Obtiene los materiales extra de una orden de mezcla.
+     */
+    public function getExtraMaterials($id)
+    {
+        $salida = ['code' => 0, 'msg' => '', 'data' => null];
+
+        $order = MixOrder::find($id);
+        if (!$order) {
+            $salida['msg'] = 'La orden no fue encontrada';
+            return response()->json($salida, 404);
+        }
+
+        $salida['code'] = 1;
+        $salida['msg']  = 'OK';
+        $salida['data'] = $order->extraMaterials()->get();
+        return response()->json($salida);
+    }
 }

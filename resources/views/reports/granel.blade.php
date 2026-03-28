@@ -305,7 +305,7 @@
         <th style="width: 70%;">Temperatura °C</th>
         <th style="width: 70%;">Especificaciónes</th>
         <th style="width: 70%;">Resultado</th>
-        <th style="width: 70%;">F. Realizo</th>
+        <th style="width: 70%;">FIRMA DE REALIZO (Control de Calidad)</th>
       </tr>
     </thead>
     <tbody>
@@ -338,7 +338,7 @@
     <!-- Responsables y Equipo -->
     <table class="firma-table">
       <tr>
-        <td style="width: 20%;"><span class="label">RESPONSABLES:</span></td>
+        <td style="width: 20%;"><span class="label">RESPONSABLE DE PRODUCCIÓN:</span></td>
         <td style="width: 30%;"><span class="underlined">{{ str_replace(array("\n", "\r", "\n\r"), " ", $data->granel->responsables) }}</span></td>
         <td style="width: 15%;"><span class="label">EQUIPO:</span></td>
         <td style="width: 35%;"><span class="underlined">{{ $data->granel->equipo }}</span></td>

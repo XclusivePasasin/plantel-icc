@@ -95,6 +95,21 @@ Route::post('mix/order/change-lots-bulk', 'MixController@changeLotsBulk')
     ->middleware('auth');
     
 
+# Rutas para materia prima adicional (extra_materials)
+Route::post('mix/order/{id}/extra-materials', 'MixController@storeExtraMaterials')
+    ->name('mix.extra.materials.store')
+    ->middleware('auth');
+
+Route::get('mix/order/{id}/extra-materials', 'MixController@getExtraMaterials')
+    ->name('mix.extra.materials.get')
+    ->middleware('auth');
+
+# JefeProduccion puede actualizar observaciones
+Route::post('mix/order/{id}/update-observaciones', 'MixController@updateObservaciones')
+    ->name('mix.update.observaciones')
+    ->middleware('auth');
+
+
 # Nueva ruta para obtener solo el UXC desde API remota (proxy sin CORS)
 Route::get('packing/order/uxc/{order_code}', 'EmpaqueController@getUXCByOrder')
     ->name('packing.getUXC')

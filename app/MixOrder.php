@@ -36,4 +36,8 @@ class MixOrder extends Model
     public function granel(){
         return $this->hasOne("App\Granel");
     }
+
+    public function extraMaterials(){
+        return $this->hasMany("App\ExtraMaterial", 'mix_order_id');
+    }
 }

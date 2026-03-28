@@ -64,6 +64,7 @@ export function formatOrderDB(data) {
         stock: ng.stock,
         almacen: ng.almacen,
         entrega1: ng.entrega1,
+        entrega_duplicada1: ng.entrega_duplicada1 !== undefined && ng.entrega_duplicada1 !== null ? (ng.entrega_duplicada1 == 1) : false,
         lot1: ng.lot1,
         old_lot1: ng.old_lot1,
         entrega2: ng.entrega2,
@@ -122,6 +123,7 @@ export function formatOrderAPI(e) {
         stock: ng.stock,
         almacen: ng.almacen,
         entrega1: false,
+        entrega_duplicada1: false,
         lot1: "",
         entrega2: false,
         lot2: ""

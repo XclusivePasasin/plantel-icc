@@ -305,7 +305,196 @@
                     </table>
                 </div>
 
-                <!-- <div class="border  rounded border-secondary p-3 mt-6">
+                <!-- ═══════════════════════════════════════════════════════════════
+                     SECCIÓN: MATERIA PRIMA ADICIONAL (solo si hay registros)
+                ═══════════════════════════════════════════════════════════════ -->
+                <div v-if="extraMaterials.length > 0" class="mt-4">
+                    <h6 class="px-3 fw-bold border-bottom pb-2">
+                        MATERIA PRIMA ADICIONAL
+                    </h6>
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Código</th>
+                                    <th>Descripción</th>
+                                    <th class="text-center">Cantidad</th>
+                                    <th>Unidad</th>
+                                    <th class="text-center">Almacen</th>
+                                    <th class="text-center">Lote</th>
+                                    <th class="text-center">Registrado por</th>
+                                    <th class="text-center">Fecha</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="em in extraMaterials" :key="em.id">
+                                    <td>{{ em.code }}</td>
+                                    <td>{{ em.description }}</td>
+                                    <td class="text-center">{{ formatDecimal(em.cantidad) }}</td>
+                                    <td>{{ em.unidad_medida }}</td>
+                                    <td class="text-center">{{ em.almacen }}</td>
+                                    <td class="text-center position-relative" style="padding-left: 70px;"> <!-- Ajusta este padding o usa margin en el input -->
+                                        <input type="text" 
+                                            disabled 
+                                            :value="em.lote" 
+                                            class="form-control form-control-sm defblue1 pe-4" 
+                                            style="width: 200px; margin-left: 0px;" 
+                                        />
+                                    </td>
+                                    <td class="text-center">{{ em.created_by || '—' }}</td>
+                                    <td class="text-center">{{ em.created_at ? (em.created_at.substring(8,10) + '/' + em.created_at.substring(5,7) + '/' + em.created_at.substring(0,4)) : '—' }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- ═══════════════════════════════════════════════════════════════
+                     MODAL: Selección de Materia Prima Adicional (estilo Odoo)
+                ═══════════════════════════════════════════════════════════════ -->
+                <div class="modal fade" id="extraMaterialsModal" tabindex="-1" aria-hidden="true">
+                    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+                        <div class="modal-content">
+                            <div class="modal-header bg-dark text-white">
+                                <h5 class="modal-title">
+                                    <i class="bi bi-box-seam me-2"></i>Agregar Materia Prima Adicional
+                                </h5>
+                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <!-- Barra de búsqueda -->
+                                <div class="input-group mb-3">
+                                    <span class="input-group-text"><i class="bi bi-search"></i></span>
+                                    <input
+                                        type="text"
+                                        class="form-control"
+                                        placeholder="Buscar por descripción o código..."
+                                        v-model="extraModal.search"
+                                    />
+                                </div>
+
+                                <!-- Grid de materiales al estilo Odoo -->
+                                <div class="row g-2">
+                                    <div
+                                        v-for="mat in filteredModalMaterials"
+                                        :key="mat.material_id"
+                                        class="col-12 col-sm-6 col-lg-4"
+                                    >
+                                        <div
+                                            class="card shadow-sm border"
+                                            :class="isSelectedExtra(mat.material_id) ? 'border-primary bg-primary bg-opacity-10' : 'border-light'"
+                                            style="cursor: pointer;"
+                                            @click="toggleExtraSelection(mat)"
+                                        >
+                                            <div class="card-body p-3">
+                                                <div class="d-flex justify-content-between align-items-start mb-1">
+                                                    <strong class="text-truncate me-2" style="max-width:75%;">{{ mat.description }}</strong>
+                                                    <span class="badge bg-secondary text-truncate" style="max-width:25%; font-size:0.7rem;">{{ mat.code }}</span>
+                                                </div>
+                                                <div class="text-muted small mb-1">
+                                                    <i class="bi bi-box me-1"></i>{{ mat.unit || '—' }}
+                                                    &nbsp;|&nbsp;
+                                                    <i class="bi bi-building me-1"></i>{{ mat.almacen || '—' }}
+                                                </div>
+
+                                                <!-- Inputs cuando está seleccionado -->
+                                                <div v-if="isSelectedExtra(mat.material_id)" class="mt-2" @click.stop>
+                                                    <div class="mb-1">
+                                                        <label class="form-label small mb-0 fw-bold">Lote <span class="text-danger">*</span></label>
+                                                        <input
+                                                            type="text"
+                                                            class="form-control form-control-sm"
+                                                            placeholder="Ej: L-2024-01"
+                                                            v-model="getExtraSelection(mat.material_id).lote"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label class="form-label small mb-0 fw-bold">Cantidad <span class="text-danger">*</span></label>
+                                                        <input
+                                                            type="number"
+                                                            step="0.01"
+                                                            min="0.01"
+                                                            class="form-control form-control-sm"
+                                                            placeholder="0.00"
+                                                            v-model="getExtraSelection(mat.material_id).cantidad"
+                                                        />
+                                                    </div>
+                                                    <button class="btn btn-sm btn-outline-danger mt-2 w-100" @click.stop="removeExtraSelection(mat.material_id)">
+                                                        <i class="bi bi-trash me-1"></i>Quitar
+                                                    </button>
+                                                </div>
+
+                                                <!-- Botón agregar cuando no está seleccionado -->
+                                                <div v-else class="mt-2 text-end">
+                                                    <button class="btn btn-sm btn-warning fw-bold text-dark" @click.stop="toggleExtraSelection(mat)">
+                                                        <i class="bi bi-plus-lg me-1"></i>Agregar
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div v-if="filteredModalMaterials.length === 0" class="col-12 text-center text-muted py-4">
+                                        <i class="bi bi-inbox fs-3 d-block mb-2"></i>
+                                        No se encontraron materiales
+                                    </div>
+                                </div>
+
+                                <!-- Resumen de seleccionados -->
+                                <div v-if="extraModal.selectedItems.length > 0" class="mt-3 p-3 bg-light rounded border">
+                                    <strong class="mb-2 d-block"><i class="bi bi-check2-circle text-success me-1"></i>Seleccionados ({{ extraModal.selectedItems.length }})</strong>
+                                    <ul class="list-unstyled mb-0">
+                                        <li v-for="sel in extraModal.selectedItems" :key="sel.material_id" class="small text-muted">
+                                            • {{ sel.description }} — Lote: <strong>{{ sel.lote || '—' }}</strong>, Cantidad: <strong>{{ sel.cantidad || '—' }}</strong>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                <button
+                                    type="button"
+                                    class="btn btn-success"
+                                    :disabled="extraModal.selectedItems.length === 0"
+                                    @click="openExtraConfirmModal"
+                                >
+                                    <i class="bi bi-check-lg me-1"></i>
+                                    Confirmar ({{ extraModal.selectedItems.length }})
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- MODAL: Confirmación final -->
+                <div class="modal fade" id="extraConfirmModal" tabindex="-1" aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title"><i class="bi bi-question-circle me-2 text-warning"></i>Confirmar agregado</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <p>¿Desea confirmar el agregado de <strong>{{ extraModal.selectedItems.length }}</strong> material(es) extra a esta orden?</p>
+                                <ul class="list-group list-group-flush small">
+                                    <li v-for="sel in extraModal.selectedItems" :key="sel.material_id" class="list-group-item px-0 py-1">
+                                        <strong>{{ sel.description }}</strong><br>
+                                        Lote: {{ sel.lote }} | Cantidad: {{ sel.cantidad }} {{ sel.unidad_medida }}
+                                    </li>
+                                </ul>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" :disabled="extraModal.saving">Cancelar</button>
+                                <button type="button" class="btn btn-success" @click="confirmExtraMaterials" :disabled="extraModal.saving">
+                                    <span v-if="extraModal.saving" class="spinner-border spinner-border-sm me-1"></span>
+                                    <i v-else class="bi bi-check2 me-1"></i>
+                                    Confirmar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- \u003cdiv class="border  rounded border-secondary p-3 mt-6">
                     <h6 class="border-bottom py-2 fw-bold">ANÁLISIS DE DUREZA DE AGUA</h6>
                     <div class="row">
                         <div class="col-12 col-md-4">
@@ -341,7 +530,7 @@
 
                 <!-- <textarea :disabled="!(edit_mode && has_cap('cap-materiaprima') && data.status < 4)"  v-model="data.observations" placeholder="OBSERVACIONES: " class="form-control mt-6 defblue1" rows="2"></textarea> -->
                 <textarea
-                    :disabled="!(edit_mode && (has_cap('cap-materiaprima') || has_cap('cap-supcalidad')))"
+                    :disabled="!((edit_mode && (has_cap('cap-materiaprima') || has_cap('cap-supcalidad'))) || (edit_observaciones && has_cap('cap-jefecontrol-calidad')))"
                     v-model="data.observations"
                     placeholder="OBSERVACIONES:"
                     class="form-control mt-6 defblue1"
@@ -366,7 +555,7 @@
                         <div class="col-12 col-md-4">
                             <div class="row">
                                 <div class="col-12 col-md-4">
-                                    <label for="inputPassword6" class="col-form-label text-center">RESPONSABLE DE LA REVISIÓN</label>
+                                    <label for="inputPassword6" class="col-form-label text-center">RESPONSABLE DE LA REVISIÓN (Control de Calidad)</label>
                                 </div>
                                 <div class="col-12 col-md-8">
                                     <input disabled="true" :value="revs.username"  type="text" class="form-control form-control-sm defblue1 text-center ms-md-4" />
@@ -469,6 +658,33 @@
                 </div>
             </div>
 
+
+            <!-- MODAL: Confirmar guardar Observaciones (JefeControlCalidad) -->
+            <div class="modal fade" id="obsConfirmModal" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="modal-header bg-warning">
+                            <h5 class="modal-title fw-bold">
+                                <i class="bi bi-pencil-square me-2"></i>Confirmar cambio de observaciones
+                            </h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p class="mb-2">¿Está seguro que desea guardar las observaciones modificadas?</p>
+                            <div class="bg-light border rounded p-2" style="max-height:150px; overflow-y:auto; font-size:0.85rem; white-space:pre-wrap;">{{ data.observations }}</div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" :disabled="saving_observaciones">
+                                Cancelar
+                            </button>
+                            <button type="button" class="btn btn-success" @click="saveObservaciones" :disabled="saving_observaciones">
+                                <span v-if="saving_observaciones" class="spinner-border spinner-border-sm me-1"></span>
+                                <i v-else class="bi bi-check2 me-1"></i>Confirmar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
                 <div class="text-end mt-6">
                     <div class="col-auto">
@@ -582,7 +798,6 @@
                         
                         <button type="button" v-if="edit_mode == false && data.status == FLAGS.MEZCLA_REVISADA && (has_cap('cap-calidad') || has_cap('cap-supcalidad')) && isAuthorizedPagePass" @click="authorize" class="btn btn-success">Autorizar</button>
 
-                        <!-- <button type="button" v-if="edit_mode == false && data.status == FLAGS.PESAJE_AUTORIZADO && has_cap('cap-mezcla')" @click="edit_mode = true" class="btn btn-success">Iniciar mezcla</button> -->
                         <button type="button" 
                                 v-if="edit_mode == false && data.status == FLAGS.PESAJE_AUTORIZADO && has_cap('cap-mezcla') && isStartPage" 
                                 @click="setCurrentDateTime(); edit_mode = true" 
@@ -684,6 +899,36 @@
                                 class="btn btn-warning text-white">
                             <i class="fas fa-edit me-1"></i> Actualizar
                         </button> -->
+
+                        <!-- Botón: Agregar Materia Prima (JefeControlCalidad o JefeProduccion, solo En Proceso) -->
+                        <button
+                            type="button"
+                            v-if="data.status === FLAGS.MEZCLA_EN_PROCESO && (has_cap('cap-jefecontrol-calidad') || has_cap('cap-jefeproduccion'))"
+                            @click="openExtraMaterialsModal"
+                            class="btn btn-success"
+                        >
+                            Agregar Materia Prima
+                        </button>
+
+                        <!-- Botón: Modificar Observaciones (JefeControlCalidad) -->
+                        <button
+                            type="button"
+                            v-if="has_cap('cap-jefecontrol-calidad') && !edit_observaciones"
+                            @click="edit_observaciones = true"
+                            class="btn btn-warning"
+                        >
+                            Modificar Observaciones
+                        </button>
+                        <button
+                            type="button"
+                            v-if="has_cap('cap-jefecontrol-calidad') && edit_observaciones"
+                            @click="openObsConfirmModal"
+                            class="btn btn-success"
+                            :disabled="saving_observaciones"
+                        >
+                            <span v-if="saving_observaciones" class="spinner-border spinner-border-sm me-1"></span>
+                            <span v-else></span>Guardar Observaciones
+                        </button>
                     </div>
                 </div>
             </div>
@@ -693,7 +938,7 @@
 </template>
 
 <script>
-    const {upsertOrder,approvePeso,authorizeMixOrder,initMixOrder,finishOrder,autorizeFinishedOrder,updateWaterMix, changeLotsBulk, revisarMixOrder, updateMaterialsDelivery,updateOrderMaterialsReceived, changeLot, updateUserEntregaMp  } = require("../service.js");
+    const {upsertOrder,approvePeso,authorizeMixOrder,initMixOrder,finishOrder,autorizeFinishedOrder,updateWaterMix, changeLotsBulk, revisarMixOrder, updateMaterialsDelivery,updateOrderMaterialsReceived, changeLot, updateUserEntregaMp, storeExtraMaterials, getExtraMaterials, updateObservacionesMix } = require("../service.js");
     const {formatOrderDB,getJSONRevision,convertServerDate,convertServerDateTime} = require("../helpers.js");
 
     import { VueMaskDirective } from 'v-mask'
@@ -729,6 +974,19 @@
                 isSubmitting: false,
                 strict_mode: false,
                 isSpecialVerificationSubmitted: false, // Controla si ya se guardó la verificación especial
+                // Extra Materials
+                extraMaterials: [],
+                extraModal: {
+                    search: '',
+                    selectedItems: [],
+                    saving: false,
+                    instanceMain: null,
+                    instanceConfirm: null,
+                },
+                // Observaciones (JefeProduccion)
+                edit_observaciones: false,
+                saving_observaciones: false,
+                obsConfirmModalInstance: null,
             }
         },
         mounted() {
@@ -767,9 +1025,36 @@
             );
                     // Inicializar el modal cuando el componente esté montado
             this.passwordModal = new bootstrap.Modal(document.getElementById('passwordModal'));
+
+            // Inicializar modales de extra materials
+            const elMain = document.getElementById('extraMaterialsModal');
+            if (elMain && window.bootstrap) {
+                this.extraModal.instanceMain = new window.bootstrap.Modal(elMain);
+            }
+            const elConfirm = document.getElementById('extraConfirmModal');
+            if (elConfirm && window.bootstrap) {
+                this.extraModal.instanceConfirm = new window.bootstrap.Modal(elConfirm);
+            }
+            const elObsConfirm = document.getElementById('obsConfirmModal');
+            if (elObsConfirm && window.bootstrap) {
+                this.obsConfirmModalInstance = new window.bootstrap.Modal(elObsConfirm);
+            }
+
+            // Cargar materiales extra si la orden ya tiene ID
+            if (this.data && this.data.order_id) {
+                this.loadExtraMaterials();
+            }
         },
       
         computed: {
+            filteredModalMaterials() {
+                const q = (this.extraModal.search || '').toLowerCase();
+                if (!q) return this.data.materials || [];
+                return (this.data.materials || []).filter(m =>
+                    (m.description || '').toLowerCase().includes(q) ||
+                    (m.code || '').toLowerCase().includes(q)
+                );
+            },
           showStrictButton() {
                 const isFirstTime = this.data.status === this.FLAGS.PESAJE_APROBADO && this.data.status_receive_materials === 0;
                 const hasPendingChanges = this.data.status < this.FLAGS.PESAJE_APROBADO && this.data.lot1_changes > 0;
@@ -857,11 +1142,146 @@
             });
         },
         methods: {
-            // rolEs(roleName) {
-            // // Verifica si el usuario actual tiene un rol en particular
-            // // Asegúrate de que window.AppVars.current_user.role exista
-            // return window.AppVars?.current_user?.role === roleName;
-            // },
+            // ──────────────────────────────────────────────────────────────
+            // EXTRA MATERIALS METHODS
+            // ──────────────────────────────────────────────────────────────
+            async loadExtraMaterials() {
+                try {
+                    const res = await getExtraMaterials(this.data.order_id);
+                    if (res.data && res.data.code === 1) {
+                        this.extraMaterials = res.data.data || [];
+                    }
+                } catch (e) {
+                    console.error('Error cargando materiales extra:', e);
+                }
+            },
+
+            openExtraMaterialsModal() {
+                this.extraModal.search = '';
+                this.extraModal.selectedItems = [];
+                if (this.extraModal.instanceMain) {
+                    this.extraModal.instanceMain.show();
+                } else {
+                    const el = document.getElementById('extraMaterialsModal');
+                    if (el) new bootstrap.Modal(el).show();
+                }
+            },
+
+            isSelectedExtra(materialId) {
+                return this.extraModal.selectedItems.some(s => s.material_id === materialId);
+            },
+
+            getExtraSelection(materialId) {
+                return this.extraModal.selectedItems.find(s => s.material_id === materialId) || {};
+            },
+
+            toggleExtraSelection(mat) {
+                if (this.isSelectedExtra(mat.material_id)) {
+                    this.removeExtraSelection(mat.material_id);
+                } else {
+                    this.extraModal.selectedItems.push({
+                        material_id: mat.material_id,
+                        description: mat.description,
+                        code: mat.code,
+                        lote: '',
+                        cantidad: '',
+                        unidad_medida: mat.unit || '',
+                        almacen: mat.almacen || '',
+                    });
+                }
+            },
+
+            removeExtraSelection(materialId) {
+                this.extraModal.selectedItems = this.extraModal.selectedItems.filter(
+                    s => s.material_id !== materialId
+                );
+            },
+
+            openExtraConfirmModal() {
+                // Validar campos
+                let valid = true;
+                for (const s of this.extraModal.selectedItems) {
+                    if (!s.lote || s.lote.trim() === '') {
+                        StatusHandler.ValidationMsg('El campo Lote es obligatorio para: ' + s.description);
+                        valid = false; break;
+                    }
+                    if (!s.cantidad || parseFloat(s.cantidad) <= 0) {
+                        StatusHandler.ValidationMsg('La cantidad debe ser mayor a 0 para: ' + s.description);
+                        valid = false; break;
+                    }
+                }
+                if (!valid) return;
+
+                if (this.extraModal.instanceMain) this.extraModal.instanceMain.hide();
+
+                if (this.extraModal.instanceConfirm) {
+                    this.extraModal.instanceConfirm.show();
+                } else {
+                    const el = document.getElementById('extraConfirmModal');
+                    if (el) new bootstrap.Modal(el).show();
+                }
+            },
+
+            async confirmExtraMaterials() {
+                this.extraModal.saving = true;
+                try {
+                    const res = await storeExtraMaterials(this.data.order_id, this.extraModal.selectedItems);
+                    const response = res.data;
+                    if (response.code === 1) {
+                        this.extraMaterials = response.data || [];
+                        this.extraModal.selectedItems = [];
+                        if (this.extraModal.instanceConfirm) this.extraModal.instanceConfirm.hide();
+                        StatusHandler.ShowStatus('Materia prima adicional guardada correctamente', StatusHandler.OPERATION.DEFAULT, StatusHandler.STATUS.SUCCESS);
+                    } else {
+                        StatusHandler.ShowStatus(response.msg, StatusHandler.OPERATION.DEFAULT, StatusHandler.STATUS.FAIL);
+                    }
+                } catch (e) {
+                    console.error(e);
+                    const msg = e.response?.data?.msg || 'Error al guardar materia prima adicional';
+                    StatusHandler.ShowStatus(msg, StatusHandler.OPERATION.DEFAULT, StatusHandler.STATUS.FAIL);
+                } finally {
+                    this.extraModal.saving = false;
+                }
+            },
+
+            // ──────────────────────────────────────────────────────────────
+            // OBSERVACIONES (JefeControlCalidad)
+            // ──────────────────────────────────────────────────────────────
+            openObsConfirmModal() {
+                if (this.obsConfirmModalInstance) {
+                    this.obsConfirmModalInstance.show();
+                } else {
+                    const el = document.getElementById('obsConfirmModal');
+                    if (el) new bootstrap.Modal(el).show();
+                }
+            },
+
+            async saveObservaciones() {
+                this.saving_observaciones = true;
+                try {
+                    const res = await updateObservacionesMix(this.data.order_id, this.data.observations);
+                    const response = res.data;
+                    if (response.code === 1 || response.data?.actualizado) {
+                        // Actualizar el textarea con el valor procesado por el servidor
+                        if (response.data && response.data.observaciones) {
+                            this.$set(this.data, 'observations', response.data.observaciones);
+                        }
+                        // Cerrar modal de confirmación
+                        if (this.obsConfirmModalInstance) this.obsConfirmModalInstance.hide();
+                        this.edit_observaciones = false;
+                        StatusHandler.ShowStatus('Observaciones actualizadas', StatusHandler.OPERATION.DEFAULT, StatusHandler.STATUS.SUCCESS);
+                    } else {
+                        StatusHandler.ShowStatus(response.msg || 'Sin cambios detectados', StatusHandler.OPERATION.DEFAULT, StatusHandler.STATUS.FAIL);
+                    }
+                } catch (e) {
+                    console.error(e);
+                    StatusHandler.ShowStatus('Error al guardar observaciones', StatusHandler.OPERATION.DEFAULT, StatusHandler.STATUS.FAIL);
+                } finally {
+                    this.saving_observaciones = false;
+                }
+            },
+
+            // ──────────────────────────────────────────────────────────────
 
             registrarEntregaMP: async function() {
                 if (!this.data.order_id) {

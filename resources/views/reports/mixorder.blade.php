@@ -563,14 +563,50 @@
             </tbody>
         </table>
 
+        @if(isset($extraMaterials) && $extraMaterials->count() > 0)
+        <div class="mt-0" style="margin-top: -10px;">
+            <h6 style="font-weight: bold; font-size: 85%; margin-bottom: 4px; text-transform: uppercase; border-bottom: 2px solid black; padding-bottom: 3px;">
+                Materia Prima Adicional
+            </h6>
+            <table class="dw100" style="margin-top: 6px; border-collapse: collapse; font-size: 72%;">
+                <thead>
+                    <tr style="border-top: 1px solid black; border-bottom: 1px solid black;">
+                        <th style="width:28%; padding: 3px 5px; text-align: left;">DESCRIPCIÓN</th>
+                        <th style="width:12%; padding: 3px 5px; text-align: center;">CÓDIGO</th>
+                        <th style="width:10%; padding: 3px 5px; text-align: center;">CANTIDAD</th>
+                        <th style="width:8%;  padding: 3px 5px; text-align: center;">UNIDAD</th>
+                        <th style="width:15%; padding: 3px 5px; text-align: center;">ALMACÉN</th>
+                        <th style="width:15%; padding: 3px 5px; text-align: center;">LOTE</th>
+                        <th style="width:12%; padding: 3px 5px; text-align: center;">FECHA</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($extraMaterials as $em)
+                    <tr style="border-bottom: 1px dotted #999;">
+                        <td style="padding: 3px 5px; text-transform: uppercase;">{{ $em->description }}</td>
+                        <td style="padding: 3px 5px; text-align: center;">{{ $em->code }}</td>
+                        <td style="padding: 3px 5px; text-align: center; font-weight: bold;">{{ $em->cantidad }}</td>
+                        <td style="padding: 3px 5px; text-align: center;">{{ $em->unidad_medida }}</td>
+                        <td style="padding: 3px 5px; text-align: center;">{{ $em->almacen }}</td>
+                        <td style="padding: 3px 5px; text-align: center; color: blue; font-weight: bold;">{{ $em->lote }}</td>
+                        <td style="padding: 3px 5px; text-align: center;">
+                            {{ $em->created_at ? \Carbon\Carbon::parse($em->created_at)->format('d/m/Y') : '—' }}
+                        </td>
+                    </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+        @endif
+
         <table class="dw100" style="white-space: nowrap; margin-top: 15px;">
             <tbody>
                 <tr>
-                    <td class="fw-b1" style="text-align: left; padding-right: 5px;">PESADO POR :</td>
+                    <td class="fw-b1" style="text-align: left; padding-right: 5px;">PESADO POR BODEGA DE MATERIA PRIMA :</td>
                     <td class="bb-1 defblue1" style="width: 100px; text-align: center;">{{ $data->user_entrega }}</td>
                     <td class="fw-b1" style="text-align: left; padding-left: 10px; padding-right: 5px;">FIRMA :</td>
                     <td class="bb-1" style="width: 100px; text-align: center;"></td>
-                    <td class="fw-b1" style="text-align: left; padding-left: 10px; padding-right: 5px;">VERIFICADO POR :</td>
+                    <td class="fw-b1" style="text-align: left; padding-left: 10px; padding-right: 5px;">VERIFICADO POR CONTROL DE CALIDAD :</td>
                     <td class="bb-1 defblue1" style="width: 100px; text-align: center;">{{ $data->verified_by }}</td>
                     <td class="fw-b1" style="text-align: left; padding-left: 10px; padding-right: 5px;">FIRMA :</td>
                     <td class="bb-1" style="width: 100px; text-align: center;"></td>
@@ -670,13 +706,13 @@
                 <tbody>
                     <tr>
                         <td class="fw-b1" style="text-align: left; padding-right: 10px; white-space: nowrap;">
-                            RENDIMIENTO REAL :
+                            RENDIMIENTO REAL DEL LOTE A GRANEL :
                         </td>
-                        <td class="bb-1 defblue1 text-center" style="width: 200px; text-align: center; white-space: nowrap;">
+                        <td class="bb-1 defblue1 text-center" style="width: 200px; text-align: center; white-space: nowrap;">   
                             {{ $data->real_performance }} KG
                         </td>
                         <td class="fw-b1" style="text-align: left; padding-left: 15px; white-space: nowrap;">
-                            NOMBRE/FIRMA :
+                            NOMBRE/FIRMA (PRODUCCIÓN) :
                         </td>
                         <td class="bb-1 defblue1 text-center" style="width: 200px; text-align: center; white-space: nowrap;">
                             {{ $data->user_recibe }}
@@ -708,7 +744,7 @@
                     <div style="border: 2px solid black; border-radius: 10px; padding: 8px; margin-bottom: 8px;">
                         <table class="dw100 fsm2" style="width: 100%; border-collapse: collapse;">
                             <tr>
-                                <td style="width: 20%; white-space: nowrap; padding: 5px;" class="fw-b1">RESPONSABLE DE LA REVISIÓN :</td>
+                                <td style="width: 20%; white-space: nowrap; padding: 5px;" class="fw-b1">RESPONSABLE DE LA REVISIÓN (Control de Calidad) :</td>
                                 <td style="width: 20%; text-align: center;" class="bb-1 defblue1">{{ $firstRevision->username ?? '_________________' }}</td>
                                 <td style="width: 5%;"></td>
                                 <td style="width: 10%; white-space: nowrap; padding-left: 5px;" class="fw-b1">FIRMA :</td>

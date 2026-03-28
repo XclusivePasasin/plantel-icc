@@ -112,7 +112,8 @@
                                 <input
                                     v-model="producto.ph"
                                     type="text"
-                                    class="form-control form-control-sm text-left defblue1"
+                                    class="form-control form-control-sm text-left"
+                                    :class="isOutOfSpec(producto.ph, producto.especificaciones.ph) ? 'text-danger font-weight-bold' : 'defblue1'"
                                     :disabled="modoLectura"
                                 />
                             </td>
@@ -124,7 +125,8 @@
                                 <input
                                     v-model="producto.viscosidad"
                                     type="text"
-                                    class="form-control form-control-sm text-left defblue1"
+                                    class="form-control form-control-sm text-left"
+                                    :class="isOutOfSpec(producto.viscosidad, producto.especificaciones.viscosidad) ? 'text-danger font-weight-bold' : 'defblue1'"
                                     :disabled="modoLectura"
                                 />
                             </td>
@@ -136,7 +138,8 @@
                                 <input
                                     v-model="producto.densidad"
                                     type="text"
-                                    class="form-control form-control-sm text-left defblue1"
+                                    class="form-control form-control-sm text-left"
+                                    :class="isOutOfSpec(producto.densidad, producto.especificaciones.densidad) ? 'text-danger font-weight-bold' : 'defblue1'"
                                     :disabled="modoLectura"
                                 />
                             </td>
@@ -456,8 +459,8 @@ export default {
             return this.orderData.num || this.orderData.order_number || "";
         },
         puedeEditarCalidadVisual() {
-            // Analista puede editar cuando estado es null
-            if ((this.estado === null) && (this.has_cap('cap-auxcontrol-calidad') || this.has_cap('cap-jefecontrol-calidad'))) {
+            // Analista puede editar cuando estado es null o 0
+            if ((this.estado === null || this.estado === 0) && (this.has_cap('cap-calidad') || this.has_cap('cap-auxcontrol-calidad') || this.has_cap('cap-jefecontrol-calidad'))) {
                 return true;
             }
             // Jefe Control Calidad puede editar cuando estado es 2 y está en modo edición
@@ -608,6 +611,39 @@ export default {
                 !this.validationErrors.densidad &&
                 !this.validationErrors.checkboxes
             );
+        },
+        isOutOfSpec(value, specStr) {
+            if (!value || value.toString().trim() === '') return false;
+            if (!specStr) return false;
+
+            // Remove commas for parsing ranges correctly e.g., "50,000 - 250,000"
+            let normalizedSpec = specStr.toString().replace(/,/g, '');
+            let val = parseFloat(value.toString().replace(/,/g, ''));
+            if (isNaN(val)) return false;
+
+            // Match range like "4.50 - 5.50"
+            let match = normalizedSpec.match(/([\d\.]+)\s*-\s*([\d\.]+)/);
+            if (match) {
+                let min = parseFloat(match[1]);
+                let max = parseFloat(match[2]);
+                return val < min || val > max;
+            }
+
+            // Match ">= 4.00"
+            let matchMin = normalizedSpec.match(/>=?\s*([\d\.]+)/);
+            if (matchMin) {
+                let min = parseFloat(matchMin[1]);
+                return val < min;
+            }
+
+            // Match "<= 5.00"
+            let matchMax = normalizedSpec.match(/<=?\s*([\d\.]+)/);
+            if (matchMax) {
+                let max = parseFloat(matchMax[1]);
+                return val > max;
+            }
+
+            return false;
         },
         habilitarEdicion() {
             this.modoLectura = false;

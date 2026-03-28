@@ -973,3 +973,29 @@ export function signPackingOrder(id, type) {
         })
     })
 }
+
+/**
+ * Guarda materiales extra de una orden de mezcla
+ * @param {Number} orderId
+ * @param {Array} items
+ */
+export function storeExtraMaterials(orderId, items) {
+    return axios.post(`/mix/order/${orderId}/extra-materials`, { items });
+}
+
+/**
+ * Obtiene los materiales extra de una orden de mezcla
+ * @param {Number} orderId
+ */
+export function getExtraMaterials(orderId) {
+    return axios.get(`/mix/order/${orderId}/extra-materials`);
+}
+
+/**
+ * Actualiza las observaciones de una orden (solo JefeProduccion)
+ * @param {Number} orderId
+ * @param {String} observaciones
+ */
+export function updateObservacionesMix(orderId, observaciones) {
+    return axios.post(`/mix/order/${orderId}/update-observaciones`, { observaciones });
+}
